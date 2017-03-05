@@ -110,14 +110,6 @@ end
 % Check required problem fields & fill other defaults
 verifyProblemStruct(problem);
 
-% Add additional required functions as needed
-if isempty(problem.fOptimalDecision)
-    problem.fOptimalDecision = @FindOptDecFromVfun;
-end
-if isempty(problem.fRandomSample)
-    problem.fRandomSample = @(t, n_sample) RandSetSample(problem.random_items, t, n_sample, adp_opt.sample_opt{:});
-end
-
 %% ====== Standardized Setup =====
 % Configure random numbers, including setup consistent stream if desired
 adp_opt = utilRandSetup(adp_opt);
@@ -126,6 +118,10 @@ adp_opt = utilRandSetup(adp_opt);
 % initializtion if parallel off)
 [cache_par_auto, ps] = utilParSetup(adp_opt);    
 
+% Add additional required functions as needed
+problem.fOptimalDecision = utilFunctForProblem(problem, 'fOptimalDecision', @FindOptDecFromVfun);
+problem.fRandomSample = utilFunctForProblem(problem, 'fRandomSample', ...
+    @(t, n_sample) RandSetSample(problem.random_items, t, n_sample, adp_opt.sample_opt{:}));
 
 %% ====== Additional Setup =====
 %Pad samples per period if shorter than number of periods
