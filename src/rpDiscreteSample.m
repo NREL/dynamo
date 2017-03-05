@@ -40,17 +40,18 @@ classdef rpDiscreteSample < RandProcess
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
-%   1  2011-04-08 14:30  BryanP      Adapted from rpLattice v6
-%   2  2011-04-12 09:45  BryanP      Initial coding complete
+%   9  2016-xx           BryanP      Corrected time indexing (reported to dynamo 3/2017) 
+%   8  2016-05-01 03:25  BryanP      Expose sample() and add support for vectorized samples
+%   7  2016-04-29 00:25  BryanP      Use uniform probability if P_List not provided
+%   6  2012-04-17 08:55  BryanP      Reworked cdf for sim/sample
+%   5  2011-11-15 18:30  BryanP      Corrected bug with sample return order
+%   4  2011-06-09 16:00  BryanP      match input shape for dnum2val and dval2num
 %   3  2011-05-03 01:04  BryanP      Fixed:
 %                                      - time/index in dlistnext & prev
 %                                      - random sample on reset
 %                                      - dlist state_n order for non-ascending values
-%   4  2011-06-09 16:00  BryanP      match input shape for dnum2val and dval2num
-%   5  2011-11-15 18:30  BryanP      Corrected bug with sample return order
-%   6  2012-04-17 08:55  BryanP      Reworked cdf for sim/sample
-%   7  2016-04-29 00:25  BryanP      Use uniform probability if P_List not provided
-%   8  2016-05-01 03:25  BryanP      Expose sample() and add support for vectorized samples
+%   2  2011-04-12 09:45  BryanP      Initial coding complete
+%   1  2011-04-08 14:30  BryanP      Adapted from rpLattice v6
 
 
     properties
@@ -71,7 +72,7 @@ classdef rpDiscreteSample < RandProcess
         CdfList = {};   % cumulative distribution for each time period
 
         ValueMap = [];  % List of unique values in Vlist, index provides state number
-        Tmax = Inf;       % Largest time with specified distribution
+        Tmax = 0;       % Largest time with specified distribution
         Tol = 1e-6;      % Tolerance for checking probabilities sum to 1
     end
 
@@ -108,7 +109,7 @@ classdef rpDiscreteSample < RandProcess
                 obj.Vlist = v_list;
                 obj.Plist = p_list;
 
-                obj.Tmax = length(v_list);
+                obj.Tmax = length(v_list) - 1;
 
                 % If probabilites not provided, assume uniform across all
                 % values
@@ -127,7 +128,7 @@ classdef rpDiscreteSample < RandProcess
 
                 obj.Slist = cell(size(v_list));
                 % Loop through time for setting up additional parameters
-                for t_idx = 1:obj.Tmax
+                for t_idx = 1:obj.Tmax+1
                     %Create State list
                     [~, obj.Slist{t_idx}, org_order] = intersect(obj.ValueMap, v_list{t_idx});
                     obj.Slist{t_idx}(org_order) = obj.Slist{t_idx};
@@ -232,16 +233,16 @@ classdef rpDiscreteSample < RandProcess
                 [value_list, state_n_list, prob] = obj.dlistnext(state_n, obj.t);
                 return
             end
-            
+
             t = min(floor(t), obj.Tmax);
             if nargin > 2 && not(isempty(state_n)) && ...
                         ( state_n > length(obj.ValueMap) ...
-                          || not(all(ismember(state_n,obj.Slist{t})))...
+                          || not(all(ismember(state_n,obj.Slist{t+1})))...
                         )
                 error('RandProcess:InvalidState', 'State #%d is not valid at time %d', state_n, t)
             else
                 %if we get here, we know the state is valid
-                [value_list, state_n_list, prob] = obj.state_info(t);
+                [value_list, state_n_list, prob] = obj.state_info(t+1);
             end
         end
 
