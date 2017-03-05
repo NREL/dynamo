@@ -1,3 +1,5 @@
+% Simple script to compile all required functions
+
 mex kdtree_ball_query.cpp
 mex kdtree_build.cpp
 mex kdtree_delete.cpp

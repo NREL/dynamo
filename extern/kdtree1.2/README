@@ -2,6 +2,8 @@ Package: kdtree1.2
 Author: Andrea Tagliasacchi ata2@cs.sfu.ca
 Date: December 8 2008
 
+Updated setup note: Bryan Palmintier, March 2017
+
 %------------------  DESCRIPTION -----------------%
 kdtree provides a minimalistic implementation of kd-tree.
 The implementation can be used either inside MATLAB by means
@@ -26,9 +28,14 @@ Everyone of the scripts/functions is complete of the following:
 
 %------------------  HOW COMPILE  -----------------%
 IMPORTANT NOTE: I assume you have a correctly configured MEX environment.
-Compiling can be done in two ways. The first is directly inside MATLAB.
-You can compile manually each of the files by calling the command mex 
-within the kdtree folder from the MATLAB command line. For example:
+
+(BP note)
+The easiest way to compile is to run the file "compile.m" which 
+includes all of the required calls to mex
+
+If needed, compiling can also be done in two other ways: Manually inside
+MATLAB by calling the command mex within the kdtree folder from the MATLAB 
+command line for each file. For example:
 
 >> mex kdtree_build.cpp 
  

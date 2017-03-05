@@ -1,12 +1,15 @@
-function results = adpSBI(problem, adp_opt, post_vfun, fn)
+function results = adpSBI(problem, adp_opt, post_vfun)
 % adpSBI Sampled Backward Induction for estimated ADP and intialization
 %
-% results = adpSBI(problem, adp_opt, post_vfun, fn)
+% results = adpSBI(problem, adp_opt, post_vfun)
 %
-% Note: This method is currently only applicable to problem classes where it is
+% Notes: 
+% -- This method is currently only applicable to problem classes where it is
 % possible to sample the post decision state without requiring a full,
 % simulation derived state (ie it does not work for partially hidden
 % Markov/quasi-Markov processes).
+% -- post_vfun and fn inputs primarily provided for use 
+% 
 %
 % Required problem attributes
 %   n_periods
@@ -37,6 +40,7 @@ function results = adpSBI(problem, adp_opt, post_vfun, fn)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  23  2016-12-xx        BryanP      Further updates, nearly working with new problem structure 
 %  22  2016-07-06 16:55  BryanP      Partial rework for new problem structure 
 %  21  2012-07-06 16:55  BryanP      Added time to PostToVfun calls
 %  20  2012-07-03 14:55  BryanP      Renamed to adpSBI (was adpSampBackInd)
@@ -92,9 +96,16 @@ adp_defaults = {
 
 adp_opt = DefaultFields(adp_opt, adp_defaults);
 
+
 %--- Handle problem setup
 % NOTE: must occur after adp_opts setup, because we use some of those
 % settings
+
+% First, announce what were doing
+if adp_opt.verbose
+    s_num_string = strtrim(sprintf('%g ', adp_opt.sbi_state_samples_per_time/1000));
+    fprintf('Sampled Backward Induction ([%s] ksamples/period)\n', s_num_string)
+end
 
 % Check required problem fields & fill other defaults
 verifyProblemStruct(problem);
@@ -107,13 +118,16 @@ if isempty(problem.fRandomSample)
     problem.fRandomSample = @(t, n_sample) RandSetSample(problem.random_items, t, n_sample, adp_opt.sample_opt{:});
 end
 
-%% ====== Additional Setup =====
-% Announce what were doing
-if adp_opt.verbose
-    s_num_string = strtrim(sprintf('%g ', adp_opt.sbi_state_samples_per_time/1000));
-    fprintf('Sampled Backward Induction ([%s] ksamples/period)\n', s_num_string)
-end
+%% ====== Standardized Setup =====
+% Configure random numbers, including setup consistent stream if desired
+adp_opt = utilRandSetup(adp_opt);
 
+% Initialize parallel pool if required (and suppress parallel pool
+% initializtion if parallel off)
+[cache_par_auto, ps] = utilParSetup(adp_opt);    
+
+
+%% ====== Additional Setup =====
 %Pad samples per period if shorter than number of periods
 if length(adp_opt.sbi_state_samples_per_time) < problem.n_periods+1
     adp_opt.sbi_state_samples_per_time(end:(problem.n_periods+1)) = ...
@@ -127,63 +141,6 @@ if length(adp_opt.sbi_uncertain_samples_per_post) < problem.n_periods+1
     adp_opt.sbi_uncertain_samples_per_post(end:(problem.n_periods+1)) = ...
         adp_opt.sbi_uncertain_samples_per_post(end);
 end
-
-% Setup consistent random numbers if desired
-if adp_opt.fix_rand && not(adp_opt.fix_rand_is_done)
-    disp('  RAND RESET: adpSBI using fixed random number stream')
-    % Reset the random number generator
-    rng('default');
-
-    %Old (pre-R2011a) syntax
-	%rand_num_sequence = RandStream('mt19937ar');
-	%RandStream.setDefaultStream(rand_num_sequence)
-
-    %Indicate that we have already reset the random number generator to
-    %prevent sub-functions from resetting again
-    adp_opt.fix_rand_is_done = true;
-end
-
-% Initialize parallel pool if required (and suppress parallel pool
-% initializtion if parallel off)
-%
-% TODO: figure out which version of MATLAB is required for AutoCreate and
-% add alternate code if needed
-% Check for parallel programming toolbox (works for R2016a)
-cache_par_auto = [];
-if exist('parallel', 'dir')
-    try
-        ps = parallel.Settings;
-        % In current (tested with R2016a) versions of MATLAB, calling
-        % parfor will automatically initialize a local worker pool, unless
-        % the AutoCreate option is disabled
-        cache_par_auto = ps.Pool.AutoCreate;
-        ps.Pool.AutoCreate = false;
-        p = gcp('nocreate');
-        if adp_opt.parallel
-            if isempty(p)
-                parpool();
-            else
-                if adp_opt.verbose
-                    fprintf(' Using existing Parallel Pool\n')
-                end
-            end
-        else
-            if not(isempty(p))
-                warning('Adp:NotDisablingParallel', 'A Parallel Pool exists so adpSBI will run in parallel despite adp option for non-parallel run')
-            end
-        end
-
-    catch
-        warning('adpSBI:ParallelInitError', 'Error initializing parallel settings')
-        lasterr %#ok<LERR>
-    end
-else
-    if adp_opt.parallel
-        warning('adpSBI:NoParallel', 'Cannot find parallel setup. Parallel execution will not be used')
-    end
-end
-    
-
 
 %-- Initialize POST decision value function (or use the one passed in)
 if nargin < 3 || isempty(post_vfun)
@@ -399,35 +356,35 @@ for t = problem.n_periods:-1:1
     %TODO:
     %   Determine (apparent) optimal decision
     %   Compute decision cost and E(future value)
-%             %Periods before the final decision period (includes neither the
-%             %terminal period (n_periods+1) nor the final decision period
-%             %(n_periods)
-%             val_next_pre_list(pre_idx) = NaN(size(probability_list));
-%             for next_pre_idx = 1:n_next
-%                 next_pre_list = next_pre_list(next_pre_idx, :);
-%                 %Find optimal next period decision , associated decision
-%                 %contribution (in t+1 money) and post-decision value (in
-%                 %t+2 money)
-%                 [this_desc, next_dec_contrib, this_next, next_post_val] = ...
-%                     fn.OptimalDec(problem, t+1, next_pre_list, post_vfun, adp);
-% 
-%                 %TODO: clever allocation?
-%                 if not(isempty(this_desc))
-%                     %opt_desc(next_pre_idx,:) = this_desc;
-%                     %next_post(next_pre_idx,:) = this_next;
-%                     if isempty(fn.FullSim)
-%                         %And corresponding non-decision contribution (in T+1 money)
-%                         [~, next_sim_contrib] = fn.Sim(problem, t+1, this_desc, this_next, next_pre_list);
-%                     else
-%                         next_sim_contrib = 0;
-%                     end
-%                     %Compute post-decision value function for this time period
-%                     %(store in t+1 money)
-% %                     val_list{state_idx}(next_pre_idx) = next_sim_contrib ...
-% %                                           + next_dec_contrib ...
-% %                                           + (1-problem.disc_rate) * next_post_val;
-%                 end
-%             end
+            %Periods before the final decision period (includes neither the
+            %terminal period (n_periods+1) nor the final decision period
+            %(n_periods)
+            val_next_pre_list(pre_idx) = NaN(size(uncertainty_list_for_pre));
+            for next_pre_idx = 1:n_next_pre
+                next_pre_list = next_pre_list(next_pre_idx, :);
+                %Find optimal next period decision, associated decision
+                %contribution (in t+1 money) and post-decision value (in
+                %t+2 money)
+                [this_desc, next_dec_contrib, this_next, next_post_val] = ...
+                    fn.OptimalDec(problem, t+1, next_pre_list, post_vfun, adp);
+
+                %TODO: clever allocation?
+                if not(isempty(this_desc))
+                    %opt_desc(next_pre_idx,:) = this_desc;
+                    %next_post(next_pre_idx,:) = this_next;
+                    if isempty(fn.FullSim)
+                        %And corresponding non-decision contribution (in T+1 money)
+                        [~, next_sim_contrib] = fn.Sim(problem, t+1, this_desc, this_next, next_pre_list);
+                    else
+                        next_sim_contrib = 0;
+                    end
+                    %Compute post-decision value function for this time period
+                    %(store in t+1 money)
+                    val_list{state_idx}(next_pre_idx) = next_sim_contrib ...
+                                          + next_dec_contrib ...
+                                          + (1-problem.disc_rate) * next_post_val;
+                end
+            end
         end
         
     % For each pre-state
