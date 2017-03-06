@@ -40,6 +40,7 @@ function results = adpSBI(problem, adp_opt, post_vfun)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  24  2017-03-06 06:00  BryanP      Added after decision ops computation and updated psuedocode  
 %  23  2016-12-xx        BryanP      Further updates, nearly working with new problem structure 
 %  22  2016-07-06 16:55  BryanP      Partial rework for new problem structure 
 %  21  2012-07-06 16:55  BryanP      Added time to PostToVfun calls
@@ -249,31 +250,31 @@ for t = problem.n_periods:-1:1
         decision_set = fn_decision_set(params_only, t, pre_state_list(samp, :)); %#ok<PFBNS>
         %And sample these choices
         decision_list{samp} = sample(decision_set, dec_per_sample);
-        %Finally build a piece of the post_decision sample
+        %Build a piece of the post_decision sample
         post_state_list{samp} = fn_decision_apply(params_only, t, pre_state_list(samp, :), decision_list{samp}); %#ok<PFBNS>
     end
     
     % Finally reconstruct the possibly parallel pieces into a full list
     post_state_list = cell2mat(post_state_list);
     decision_list = cell2mat(decision_list);
-    % And keep only unique values (since multiple copies of same state will
-    % be treated the same.
-    [post_state_list, post_map] = uniquetol(post_state_list, 'ByRows', true);
-    decision_list = decision_list(post_map, :);
         
     %-- Compute values for every post_state
     % Explanation: The goal here is to estimate the cost-to-go/value for
     % each sampled post_state. A representative basic algorithm would be:
     %
-    %   for each post_state
-    %     sample uncertainty and store change AND probability
-    %     compute uncertainty_contribution
-    %     compute after random operations costs
-    %     compute resulting next_pre_state_list
-    %     for each next_pre_state
-    %       FindOptimalDecision (based on decision_costs and post_decision value function) 
-    %       compute value as sum(uncertain_contribution + optimal_decision_cost + optimal_post_vfun_value 
-    %     compute expected value
+    %>>>   for each unique post_state
+    %>>>     compute after_decision operations cost
+    %>>>   for every sampled post_state (not just unique to maintain sample diversity) 
+    %>>>     sample uncertainty and store change
+    %>>>     compute uncertainty_contribution
+    %>>>     compute after random operations costs
+    %>>>     create resulting next_pre_state_list
+    %>>>     for each next_pre_state
+    %>>>       FindOptimalDecision (based on decision_costs and next post_decision value function) 
+    %>>>       compute next_pre_value as sum(optimal_decision_cost + optimal_post_vfun_value) 
+    %>>>       compute post_random_val as sum( uncertainty_contribution, after_random_ops, (1-disc_rate) * next_pre_value) 
+    %>>>     compute E[random_value] as sum(post_random_val)/n_unique_next_pre 
+    %>>>     compute total post_decision_value as sum(after_dec_ops_cost, expected_random_value) 
     %
     % However FindOptimalDecision is typically an expensive computation,
     % and is also fairly likely that there will be overlap in pre_state
@@ -283,16 +284,20 @@ for t = problem.n_periods:-1:1
     % finding the optimal decision and future values, and finally matching
     % these future values with the originating post_state to compute the
     % expected values.
+    %
+    % Also note, that here we don't obtain probabilities from the problem's
+    % random set, since we are using Monte Carlo and assume the probability
+    % is proportional to the number of samples
     
     % Initialize storage
     % Here we maintain a cell array so that each post_state can track
     % multiple uncertainty/next_decision/next_value combinations
-    n_post_states = size(post_state_list,1);
-    next_pre_list = cell(n_post_states,1);
-    uncertainty_list = cell(n_post_states,1);
-    decision_list_for_pre = cell(n_post_states,1);
-    val_list = cell(n_post_states,1);
-    exp_vals = zeros(n_post_states,1);
+    n_unique_post_states = size(post_state_list,1);
+    next_pre_list = cell(n_unique_post_states,1);
+    uncertainty_list = cell(n_unique_post_states,1);
+    decision_list_for_pre = cell(n_unique_post_states,1);
+    val_list = cell(n_unique_post_states,1);
+    exp_vals = zeros(n_unique_post_states,1);
 
     % Cache only required structure pieces for use in the following set of
     % parfor loops
@@ -300,22 +305,42 @@ for t = problem.n_periods:-1:1
     fn_random_apply = problem.fRandomApply;
     fn_random_cost = problem.fRandomCost;
     fn_random_sample = problem.fRandomSample;
-    fn_ops_after_random = problem.fOpsAfterRandom;
     fn_ops_before_decision = problem.fOpsBeforeDecision;
+    %Note: fn_ops_after_decision not needed b/c assume internal loop for computing operations cost (with memoization?) 
+    fn_ops_after_random = problem.fOpsAfterRandom;
     n_periods = problem.n_periods;
     adp_verbose = adp_opt.verbose;
     rand_per_post_state = adp_opt.sbi_uncertain_samples_per_post(t);
     vfun_approx_params = adp_opt.vfun_approx_params;
     this_vfun = post_vfun(t+1);
 
+    %>>>   for each (unique) post_state
+    % Note: for loop is implicit, since computed internal to fOps*
+    %
+    % And keep only unique values (since multiple copies of same state will
+    % be treated the same.
+    [unique_post_state_list, unique_post_map, unique_to_full_post_map] = ...
+        uniquetol(post_state_list, 'ByRows', true);
+    unique_decision_list = decision_list(unique_post_map, :);
+    unique_uncertainty_list = uncertainty_list(unique_post_map, :);
+    %>>>     compute after_decision operations cost
+    % Compute unique ops costs, using internal Ops loop
+    after_dec_cost = problem.fOpsAfterDecision(only_params, t, ...
+        unique_post_state_list, unique_decision_list, unique_uncertainty_list);
+    % Rebuild full ops costs
+    after_dec_cost = after_dec_cost(unique_to_full_post_map);
+    
+%%>>> Post Bug Fix Marker <<<<    
+    %>>>   for every sampled post_state (not just unique to maintain sample diversity) 
     %Loop to find full set of next_pre_decision states
     parfor post_idx = 1:size(post_state_list, 1)
         if adp_verbose
             DisplayProgress(adp_verbose,post_idx)
         end
         
+        %>>>     sample uncertainty and store change
         % Sample Random outcomes to get to next pre-states
-        uncertainty_list{post_idx} = fn_random_sample(t, rand_per_post_state); %#ok<PFBNS>
+        uncertainty_list{post_idx} = fn_random_sample(t, rand_per_post_state); %#ok<PFBNS>, because OK to broadcase reduced fn_* variable
         next_pre_list{post_idx} = fn_random_apply(params_only, t, post_state_list(post_idx,:), uncertainty_list{post_idx});  %#ok<PFBNS>
         val_list{post_idx} = fn_random_cost(params_only, t, post_state_list(post_idx,:), uncertainty_list{post_idx});  %#ok<PFBNS>
         decision_list_for_pre{post_idx} = repmat(decision_list(post_idx, :), size(uncertainty_list{post_idx}, 1), 1);
@@ -382,17 +407,7 @@ for t = problem.n_periods:-1:1
                 end
             end
         end
-        
-    % For each pre-state
-    %    Select optimial next decision (t+1) 
-    %    Compute decision cost and
-    %     cost to go based on next post_vfun
-
-%             parfor s = 1:adp_opt.sbi_state_samples_per_time(t);
-%                 [vals{s}, prob{s}] = ...
-%                     BackIndCore(problem, fn, this_vf, s, t, post_state_list(s,:), adp_opt);
-%             end
-       
+               
     end
     
 
@@ -492,15 +507,3 @@ end
 
 
 end % Main Function
-
-
-%% ============ Helper Functions =============
-%------------------
-%   BackIndCore
-%------------------
-function [vals, prob, next_pre_list, opt_desc, next_post] = ...
-            BackIndCore(problem, fn, post_vfun, s_idx, t, this_post, adp)
-% Note: This function allows us to share the "insides" of the forward
-% pass loop for both parallel (parfor) and non-parallel (for) uses
-
-end

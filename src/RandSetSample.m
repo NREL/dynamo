@@ -2,6 +2,8 @@ function u_list = RandSetSample(cell_of_RandProcess, t, n_samples, opt)
 % RANDSETSAMPLE Draws the specified number of samples from a group of RandProcess objects 
 % 
 % Produces a row vector for each sample set
+%
+% Note: no probability returned, since this is a pure monte carlo sample
 
 % HISTORY
 % ver     date    time       who     changes made
