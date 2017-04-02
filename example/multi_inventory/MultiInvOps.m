@@ -9,9 +9,10 @@ function [ops_contribs, new_full_states] ...
 %   ---------------     -------------   --------    -----------
 %   Before Decision     pre-decision	empty       empty
 %   After Decision      post-decision   provided    empty
-%   After Random        post-decision   provided    provided
+%   After Random        next-pre        provided    provided
 %
-%   Note: must handle (column) vectors for each parameter
+%   Note: must handle (column) vectors for each parameter and each
+%   parameter is typically a (row) vector of values
 
 % HISTORY
 % ver     date    time       who     changes made
