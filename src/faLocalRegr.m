@@ -67,25 +67,25 @@ classdef faLocalRegr < faLocalAvg
 %% HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
-%   1  2012-03-26 09:25  BryanP      Adapted from faThinPlat v2
-%   2  2012-03-26 14:50  BryanP      Ball or k-pt ApproxNeighbors & Distance weighting
-%   3  2012-03-28 03:00  BryanP      Store ApproxNeighbor Value and DistWeight to match last approx
-%   4  2012-03-28 12:30  BryanP      Updated class documentation
-%   5  2012-04           BryanP      Added point smoothing
-%   6  2012-04-07 13:50  BryanP      Avoid most rank deficient & poorly conditioned problems
-%   7  2012-04-21 16:50  BryanP      (re)added autoexpand for ball neighborhoods
-%   8  2012-05-06 23:25  BryanP      Extracted faLoaclAvg as super class
-%   9  2012-05-08 12:05  BryanP      BUGFIX: fix no points stored and options not used by constructor
-%  10  2012-05-14 12:30  BryanP      Rename SmoothRadius to MergeRadius for clarification
-%  11  2012-06-20 00:40  BryanP      NEW: MaxRadius, UPDATE: distance weighting
-%  12  2012-06-20 01:20  BryanP      Pass approx options to do_approx through obj
-%  13  2012-06-20        BryanP      BUGFIX: return vector of values from approx with only one stored sample
+%  15  2017-04-03 10:50  BryanP      BUGFIX: remove AutoExpand definition b/c in faLocalAvg 
 %  14  2016-11-10 13:05  BryanP      Expose sampling config for user to edit 
+%  13  2012-06-20        BryanP      BUGFIX: return vector of values from approx with only one stored sample
+%  12  2012-06-20 01:20  BryanP      Pass approx options to do_approx through obj
+%  11  2012-06-20 00:40  BryanP      NEW: MaxRadius, UPDATE: distance weighting
+%  10  2012-05-14 12:30  BryanP      Rename SmoothRadius to MergeRadius for clarification
+%   9  2012-05-08 12:05  BryanP      BUGFIX: fix no points stored and options not used by constructor
+%   8  2012-05-06 23:25  BryanP      Extracted faLoaclAvg as super class
+%   7  2012-04-21 16:50  BryanP      (re)added autoexpand for ball neighborhoods
+%   6  2012-04-07 13:50  BryanP      Avoid most rank deficient & poorly conditioned problems
+%   5  2012-04           BryanP      Added point smoothing
+%   4  2012-03-28 12:30  BryanP      Updated class documentation
+%   3  2012-03-28 03:00  BryanP      Store ApproxNeighbor Value and DistWeight to match last approx
+%   2  2012-03-26 14:50  BryanP      Ball or k-pt ApproxNeighbors & Distance weighting
+%   1  2012-03-26 09:25  BryanP      Adapted from faThinPlat v2
 
 
     %Additional properties
     properties
-        AutoExpand;         % With neighbor < 1, expand to # of points if needed
         PtsOverDim;         % # points > dimensions for auto-expand (min 1)
     end
 

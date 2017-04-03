@@ -40,6 +40,7 @@ function results = adpSBI(problem, adp_opt, post_vfun)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  26  2017-04-03 11:12  BryanP      Working with new problem structure 
 %  25  2017-04-02 06:00  BryanP      Made unique state collapse for ops costs optional and clean-up operations cost handling 
 %  24  2017-03-06 06:00  BryanP      Added after decision ops computation and updated psuedocode  
 %  23  2016-12-xx        BryanP      Further updates, nearly working with new problem structure 
@@ -74,8 +75,8 @@ end
 
 adp_defaults = {
                 %adpSampleBackInd specific settings
-                'sbi_state_samples_per_time'            20     % Number of state samples per time period
-                'sbi_decisions_per_sample'              3      % Number of decision samples per state
+                'sbi_state_samples_per_time'            100     % Number of state samples per time period
+                'sbi_decisions_per_sample'              10      % Number of decision samples per state
                 'sbi_uncertain_samples_per_post'        10     % Number of random/uncertainty samples per time, used for all decisions
                 'sbi_min_ok_for_ev'                     0.7    % Min fraction of valid next_predec vals for computing exp_val. setting 0 requires only a single valid val
                 %'sbi_build_pre_value_fun'               false  %Explicitly build pre decision value functions for comparision to dpBI. Uses same function approximation as post decision (Not yet implemented)
@@ -89,7 +90,7 @@ adp_defaults = {
                 'decfun_params'         {}
                 
                 %uncertainty sampling defaults
-                'sample_opt'            {}
+                'sample_opt'            {'sobol'}
                 
                 %manage collapsing of non-unique states
                 'ops_collapse_duplicate'        true	%If true, reduces state list to unique_states before calling ops. Set to false with stochastic ops costs (e.g. many partially hidden Markov)
@@ -420,8 +421,7 @@ for t = problem.n_periods:-1:1
     
     %>>>     for each next_pre_state
     %Gather contributions for this set of next_pre_states
-%TODO: convert to parfor
-    for next_pre_idx = 1:n_next_pre
+    parfor next_pre_idx = 1:n_next_pre
         
         %>>>       FindOptimalDecision (based on decision_costs and next post_decision value function) 
         %>>>       compute next_pre_value as sum(optimal_decision_cost + optimal_post_vfun_value) 
@@ -517,20 +517,19 @@ for t = problem.n_periods:-1:1
 end
 % Note: Finished building function approximation
 
-%% >>>>>>>>>>>>>>> EDIT MARKER <<<<<<<<<<<<<<<<<<
-
-% If full results requested, find the optimial first period build and build
-% the results structure
-if nargout > 1
-    %-- Find optimal build for first period (single state)
-    s = fn.FirstState(problem);
-
-    [results.first_desc, desn_contrib, ~, future_val] = fn.OptimalDec(problem, 1, s, post_vfun(1), adp_opt);
-
-    results.objective = desn_contrib + (1-problem.disc_rate) * future_val;
-    results.post_vfun = post_vfun;
-    results.adp = adp_opt;
+%-- Find optimal build for first period (single state)
+first_state = problem.state_set{1}.as_array();
+if size(first_state, 1) > 1
+    warning('adp:MultipleFirstStates', 'Multiple first period states defined, using first')
+    first_state = first_state(1, :);
 end
+
+[results.first_decision, decision_contrib, ~, future_val] = ...
+    problem.fOptimalDecision(problem, 1, first_state, post_vfun(1), adp_opt.vfun_approx_params);
+
+results.objective = decision_contrib + (1-problem.discount_rate) * future_val;
+results.post_vfun = post_vfun;
+results.adp_opt = adp_opt;
 
 if adp_opt.verbose && not(0 == mod(adp_opt.sbi_state_samples_per_time(1), adp_opt.verbose * 50))
     fprintf('%d\n',adp_opt.sbi_state_samples_per_time(1))

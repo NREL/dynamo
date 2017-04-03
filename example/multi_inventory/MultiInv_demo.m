@@ -123,20 +123,22 @@ if any(strcmpi('dp', varargin)) || any(strcmpi('dpBI', varargin))
     %TODO: run DP
     %TODO: display summary
 
-    % dpBI(multi_inv_problem)
+    dp_results = dpBI(multi_inv_problem_dp)
 end
 
 %% Run ADP Sample Backward Induction algorithm
 if any(strcmpi('sbi', varargin)) || any(strcmpi('adpSBI', varargin))
     multi_inv_problem_sbi = multi_inv_problem;
-    adpSBI(multi_inv_problem_sbi)
+    sbi_results = adpSBI(multi_inv_problem_sbi)
     %TODO: display summary
 end
 
 %% Run ADP Double Pass (Temporal Difference, Lambda=1) algorithm
-multi_inv_problem_td1 = multi_inv_problem;
-adpTD1(multi_inv_problem_td1)
-%TODO: display summary
+if any(strcmpi('td1', varargin)) || any(strcmpi('adpTD1', varargin))
+    multi_inv_problem_td1 = multi_inv_problem;
+    td1_results = adpTD1(multi_inv_problem_td1)
+    %TODO: display summary
+end
 
 
 % Old cruft below here. Could be starting point for other sized 
