@@ -65,18 +65,19 @@ classdef faLocalAvg < FuncApprox
 %% HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
-%   1  2012-05-06 23:15  BryanP      Adapted from faLocalRegr v7
-%   2  2012-05-07 00:35  BryanP      Added fast special case for neighborhood == 1
-%   3  2012-05-09 09:35  BryanP      Added ForceClear and ForceRebuild for kD-tree parallel & read/write
-%   4  2012-05-11 23:25  BryanP      Renamed ForceClear/Rebuild as MATLAB special saveobj and loadobj
-%   5  2012-05-12 01:45  BryanP      BUGFIX: no points in neighborhood now returns NaN rather than throwing an error
-%   6  2012-05-12 03:35  BryanP      BUGFIX: remove saveobj PLUS: More kdtree handling: copy() and delete()
-%   7  2012-05-14 12:30  BryanP      Rename smooth* to merge* for clarification
-%   8  2012-06-04 14:30  BryanP      Replace kdtree_nearest_neighbor with kdtree_k_nearest_neighbors(...,1) for improved performance
-%   9  2012-06-20 00:40  BryanP      NEW: MaxRadius, UPDATE: distance weighting
-%  10  2012-06-20 01:20  BryanP      Pass approx options to do_approx through obj
-%  11  2012-06-20        BryanP      BUGFIX: return vector of values from approx with only one stored sample
+%  13  2017-04-03 09:18  BryanP      Added autoexpand support
 %  12  2016-11-10 13:05  BryanP      Expose sampling config for user to edit 
+%  11  2012-06-20        BryanP      BUGFIX: return vector of values from approx with only one stored sample
+%  10  2012-06-20 01:20  BryanP      Pass approx options to do_approx through obj
+%   9  2012-06-20 00:40  BryanP      NEW: MaxRadius, UPDATE: distance weighting
+%   8  2012-06-04 14:30  BryanP      Replace kdtree_nearest_neighbor with kdtree_k_nearest_neighbors(...,1) for improved performance
+%   7  2012-05-14 12:30  BryanP      Rename smooth* to merge* for clarification
+%   6  2012-05-12 03:35  BryanP      BUGFIX: remove saveobj PLUS: More kdtree handling: copy() and delete()
+%   5  2012-05-12 01:45  BryanP      BUGFIX: no points in neighborhood now returns NaN rather than throwing an error
+%   4  2012-05-11 23:25  BryanP      Renamed ForceClear/Rebuild as MATLAB special saveobj and loadobj
+%   3  2012-05-09 09:35  BryanP      Added ForceClear and ForceRebuild for kD-tree parallel & read/write
+%   2  2012-05-07 00:35  BryanP      Added fast special case for neighborhood == 1
+%   1  2012-05-06 23:15  BryanP      Adapted from faLocalRegr v7
 
 
     properties
@@ -87,6 +88,7 @@ classdef faLocalAvg < FuncApprox
         DistFactor;         %distance weighting = 1/(1+(factor*dist)^expon
         DistExpon;          % this is consistant with Martin H, et al 2011
         UseOneAtATime;      %Do not vectorize and cache values (for time comparison)
+        AutoExpand;         % With neighbor < 1, expand to # of points if needed
     end
 
     %Internal properties
@@ -108,6 +110,7 @@ classdef faLocalAvg < FuncApprox
                         'DistFactor'        20
                         'DistExpon'         1.5
                         'UseOneAtATime'     false
+                        'AutoExpand'        true   % With neighbor < 1, expand toat least 1 points if needed
                        };
             % Allow for empty contstructor call
             if nargin < 1
@@ -471,20 +474,26 @@ classdef faLocalAvg < FuncApprox
                         near_dist(too_far_idx) = [];
                     end
 
-                    if isempty(near_idx)
-                        out_vals(p) = NaN;
+                    %Auto expand to include at least one point if needed
+                    if isempty(near_idx) && obj.AutoExpand
+                        [near_idx, near_dist] = ...
+                            kdtree_k_nearest_neighbors(obj.Func, norm_out_pts(p,:), 1);
                     else
-                        % extract the neighborhood values
-                        near_vals = obj.StoreVals(near_idx, :);
+                        %if not, return NaN
+                        out_vals(p) = NaN;
+                        continue
+                    end
+                    
+                    % extract the neighborhood values
+                    near_vals = obj.StoreVals(near_idx, :);
 
-                        % find the average
-                        if obj.UseDistWeight
-                            near_weights = obj.distWeight(near_dist);
-                            out_vals(p) = sum(near_vals .* near_weights)/sum(near_weights);
-                        else
-                            %If not distance weighting, simply take average
-                            out_vals(p) = mean(near_vals);
-                        end
+                    % find the average
+                    if obj.UseDistWeight
+                        near_weights = obj.distWeight(near_dist);
+                        out_vals(p) = sum(near_vals .* near_weights)/sum(near_weights);
+                    else
+                        %If not distance weighting, simply take average
+                        out_vals(p) = mean(near_vals);
                     end
                 end
             end
