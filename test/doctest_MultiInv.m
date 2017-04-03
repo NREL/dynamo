@@ -3,6 +3,8 @@
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   6  2017-04-03 10:25  BryanP      Corrected tests for other recent changes 
+%   5  2017-04-03 10:15  BryanP      Updated to call MultiInv_demo as a function  
 %   4  2016-10-27 15:01  BryanP      Added random sample related tests 
 %   3  2016-10-27 13:16  BryanP      Added ops costs tests and corrected some others 
 %   2  2016-10-27 12:46  BryanP      Overhauled to include both a runable script and the doctest comments 
@@ -15,7 +17,7 @@
 %
 %% ===== Fix rand for repeatable results & Setup the problem =====
 % >> rng('default')
-% >> MultiInv_demo
+% >> multi_inv_problem = MultiInv_demo;
 % >> t = 1;
 % >> test_pre_state = multi_inv_problem.state_set{t}.sample()
 % 
@@ -144,7 +146,7 @@
 %
 % % ===== Test Ops cost Function in each of the 3 possible configurations =====
 % % First check within multi_inv_problem (only 1 of 3 defined)
-% >> isnan(multi_inv_problem.fOpsBeforeDecision)
+% >> isempty(multi_inv_problem.fOpsBeforeDecision)
 % 
 % ans =
 % 
@@ -156,7 +158,7 @@
 % 
 % MultiInvOps
 % 
-% >> isnan(multi_inv_problem.fOpsAfterRandom)
+% >> isempty(multi_inv_problem.fOpsAfterRandom)
 % 
 % ans =
 % 
@@ -251,7 +253,7 @@
 % 
 % 
 % % ===== Test Terminal Value Functions =====
-% >> final_states = multi_inv_problem.state_set{multiinv_n_periods}.sample(10)
+% >> final_states = multi_inv_problem.state_set{multi_inv_problem.n_periods}.sample(10)
 % 
 % final_states =
 % 
@@ -268,7 +270,7 @@
 % 
 % >> cache_term_val = multi_inv_problem.params.term_unit_val;
 % >> multi_inv_problem.params.term_unit_val = 1:multi_inv_problem.params.n_products;
-% >> MultiInvTermValue(multi_inv_problem.params, multi_inv_problem.n_periods, final_states)
+% >> MultiInvTerminalValue(multi_inv_problem.params, multi_inv_problem.n_periods, final_states)
 % 
 % ans =
 % 
@@ -295,14 +297,14 @@
 %% ============
 % SCRIPT
 % ============
-
+return
 %=== Script to run all commands once. Then can copy paste results into the
 %following comments to run with doctest
 
 % ===== Fix rand for repeatable results & Setup the problem =====
 clear all
 rng('default')
-MultiInv_demo   %Runs MultiInvParamsSetup
+multi_inv_problem = MultiInv_demo;   %Runs MultiInvParamsSetup
 echo on %Display commands as they are called for easy copy/paste. After demo to avoid excess output
 
 
@@ -327,9 +329,9 @@ next_pre_list = multi_inv_problem.fRandomApply(multi_inv_problem.params, t, post
 
 % ===== Test Ops cost Function in each of the 3 possible configurations =====
 % First check within multi_inv_problem (only 1 of 3 defined)
-isnan(multi_inv_problem.fOpsBeforeDecision)
+isempty(multi_inv_problem.fOpsBeforeDecision)
 func2str(multi_inv_problem.fOpsAfterDecision)
-isnan(multi_inv_problem.fOpsAfterRandom)
+isempty(multi_inv_problem.fOpsAfterRandom)
 
 
 % Now call underlying function in each instance to check behavior
@@ -345,10 +347,10 @@ MultiInvOps(multi_inv_problem.params, t, post_state_list, dec_subset, 'junk')
 
 
 % ===== Test Terminal Value Functions =====
-final_states = multi_inv_problem.state_set{multiinv_n_periods}.sample(10)
+final_states = multi_inv_problem.state_set{multi_inv_problem.n_periods}.sample(10)
 cache_term_val = multi_inv_problem.params.term_unit_val;
 multi_inv_problem.params.term_unit_val = 1:multi_inv_problem.params.n_products;
-MultiInvTermValue(multi_inv_problem.params, multi_inv_problem.n_periods, final_states)
+MultiInvTerminalValue(multi_inv_problem.params, multi_inv_problem.n_periods, final_states)
 multi_inv_problem.params.term_unit_val = cache_term_val;
 
 

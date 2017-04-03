@@ -1,8 +1,24 @@
-% Demo script showing simple use of adp clases of algorithms
+function [multi_inv_problem, multiinv_params] = MultiInv_demo(varargin)
+% MULTIINV_DEMO Demo script showing simple use of adp clases of algorithms
+%
+% multi_inv_problem = MultiInv_demo()
+%   set up full example multi_inventory problem structure
+%
+% [multi_inv_problem, multiinv_params] = MultiInv_demo()
+%   also separately return inner parameters
+%
+% MultiInv_demo(__, 'dp')
+% MultiInv_demo(__, 'dpBI')
+%   Run traditional backward induction on example MultiInv problem
+%
+% MultiInv_demo(__, 'sbi')
+% MultiInv_demo(__, 'adpSBI')
+%   Run sampled backward induction ADP algorithm on example MultiInv problem
 
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  15  2017-04-03 10:28  BryanP      Convert to a function to allow selection of algorithms to try 
 %  14  2016-12-01 22:15  BryanP      Use [] rather than NaN for unused functions 
 %  13  2016-11-10 13:15  BryanP      Changed terminal values to mixed non-zero values 
 %  12  2016-11-10 12:45  BryanP      create state_set entry for n_periods+1 to cover terminal value states
@@ -95,19 +111,32 @@ for p_idx = 1:multi_inv_problem.params.n_products
 end
 
 
+%% Now that setup is complete, let's run the specified examples
+if nargin < 1
+    return
+end
+
+
 %% Run DP (Backward Induction) algorithm
-multi_inv_problem_dp = multi_inv_problem;
-%TODO: run DP
-%TODO: display summary
+if any(strcmpi('dp', varargin)) || any(strcmpi('dpBI', varargin))
+    multi_inv_problem_dp = multi_inv_problem;
+    %TODO: run DP
+    %TODO: display summary
 
-dpBI(multi_inv_problem)
-
+    % dpBI(multi_inv_problem)
+end
 
 %% Run ADP Sample Backward Induction algorithm
-multi_inv_problem_sbi = multi_inv_problem;
-adpSBI(multi_inv_problem_sbi)
-%TODO: display summary
+if any(strcmpi('sbi', varargin)) || any(strcmpi('adpSBI', varargin))
+    multi_inv_problem_sbi = multi_inv_problem;
+    adpSBI(multi_inv_problem_sbi)
+    %TODO: display summary
+end
 
+%% Run ADP Double Pass (Temporal Difference, Lambda=1) algorithm
+multi_inv_problem_td1 = multi_inv_problem;
+adpTD1(multi_inv_problem_td1)
+%TODO: display summary
 
 
 % Old cruft below here. Could be starting point for other sized 
