@@ -23,7 +23,7 @@ function [decision, dec_contrib, post_state, forward_val] = ...
     end
 
     %Extract list of all possible decisions
-    decision_set = problem.fDecisionSet(problem, pre_state, t);
+    decision_set = problem.fDecisionSet(problem.params, pre_state, t);
     decision_list = decision_set.as_array();
     
     %Compute corresponding costs

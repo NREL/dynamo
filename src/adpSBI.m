@@ -81,7 +81,7 @@ adp_defaults = {
                 %'sbi_build_pre_value_fun'               false  %Explicitly build pre decision value functions for comparision to dpBI. Uses same function approximation as post decision (Not yet implemented)
 
                 %(post decision) value function defaults
-                'vfun_approx'           'LocalRegr'
+                'vfun_approx'           'LocalAvg'
                 'vfun_setup_params'     {'AutoExpand', true}
                 'vfun_approx_params'    {}
 
@@ -92,8 +92,8 @@ adp_defaults = {
                 'sample_opt'            {}
                 
                 %manage collapsing of non-unique states
-                'ops_collapse_duplicate'        true	%If true, adp algorithm reduces state list to unique_states before calling ops. Set to false with stochastic ops costs (e.g. many partially hidden Markov)
-                'next_pre_collapse_duplicate'	true	%If true, adp algorithm reduces next-predecision state list to unique_states before computing next period look ahead portion of post decision value function
+                'ops_collapse_duplicate'        true	%If true, reduces state list to unique_states before calling ops. Set to false with stochastic ops costs (e.g. many partially hidden Markov)
+                'next_pre_collapse_duplicate'	true	%If true, reduces next-predecision state list to unique_states before computing next period look ahead portion of post decision value function
 
                 %general ADP options used here
                 'verbose'               50
@@ -164,6 +164,9 @@ if nargin < 3 || isempty(post_vfun)
         % Copy names to value fuction 
         post_vfun(t).PtDimNames = problem.state_set{t}.pt_dim_names;
     end
+    
+    %Flag that we are NOT using old_results (post_vfun) in our options structure
+    adp_opt.old_results = false;
 else
     if adp_opt.verbose
         fprintf('    Using (copy of) existing post-decision Value Function\n')
@@ -281,7 +284,8 @@ for t = problem.n_periods:-1:1
     %>>>       compute next_pre_value as sum(optimal_decision_cost + optimal_post_vfun_value) 
     %>>>       compute post_random_val as sum( uncertainty_contribution, after_random_ops, (1-disc_rate) * next_pre_value) 
     %>>>     compute E[random_value] as sum(post_random_val)/n_unique_next_pre 
-    %>>>     compute total post_decision_value as sum(after_dec_ops_cost, expected_random_value) 
+    %>>>     compute total post_decision_value as sum(after_dec_ops_cost, expected_random_value)
+    %>>>   build post decision value function for current time
     %
     % However FindOptimalDecision is typically an expensive computation,
     % and is also fairly likely that there will be overlap in pre_state
@@ -299,12 +303,12 @@ for t = problem.n_periods:-1:1
     % Initialize storage
     % Here we maintain a cell array so that each post_state can track
     % multiple uncertainty/next_decision/next_value combinations
+    % Note: also ensures desired cell column vector shape
     n_post_states = size(post_state_list,1);
     next_pre_list = cell(n_post_states,1);
     uncertainty_list = cell(n_post_states,1);
     decision_list_for_pre = cell(n_post_states,1);
-    val_list = cell(n_post_states,1);
-    exp_vals = zeros(n_post_states,1);
+    uncertainty_contrib = cell(n_post_states,1);
 
     % Cache only required structure pieces for use in the following set of
     % parfor loops
@@ -335,17 +339,17 @@ for t = problem.n_periods:-1:1
     %>>>     compute after_decision operations cost
     if not(isempty(problem.fOpsAfterDecision))
         % Compute unique ops costs, using internal Ops loop
-        after_dec_cost = problem.fOpsAfterDecision(params_only, t, ...
+        after_decision_ops = problem.fOpsAfterDecision(params_only, t, ...
             post_state_list, decision_list);
     else
-        after_dec_cost = 0;
+        after_decision_ops = 0;
     end
 
     % Rebuild full lists if needed
     if adp_opt.ops_collapse_duplicate
         post_state_list = post_state_list(unique_to_full_post_map, :);
         decision_list = decision_list(unique_to_full_post_map, :);
-        after_dec_cost = after_dec_cost(unique_to_full_post_map, :);
+        after_decision_ops = after_decision_ops(unique_to_full_post_map, :);
     end
     
     %>>>   for every sampled post_state (not just unique to maintain sample diversity) 
@@ -353,7 +357,8 @@ for t = problem.n_periods:-1:1
     
     % Note: since we typically sample multiple times per post decision
     % state, each result is stored as a cell array
-    parfor post_idx = 1:size(post_state_list, 1)
+    n_post_state = size(post_state_list, 1);
+    parfor post_idx = 1:n_post_state
         if adp_verbose
             DisplayProgress(adp_verbose,post_idx)
         end
@@ -366,18 +371,20 @@ for t = problem.n_periods:-1:1
 
         %>>>     compute uncertainty_contribution
         if not(isempty(fn_random_cost))
-            val_list{post_idx} = fn_random_cost(params_only, t, post_state_list(post_idx,:), uncertainty_list{post_idx});
+            uncertainty_contrib{post_idx} = fn_random_cost(params_only, t, post_state_list(post_idx,:), uncertainty_list{post_idx});
         else
-            val_list{post_idx} = 0;
+            uncertainty_contrib{post_idx} = 0;
         end
     end
     
     % Concatinate lists of states, decisions, and uncertainty into a single
     % matrix. Can re-split later using num2mat (or some tensor mapping)
+    uncertainty_list = cell2mat(uncertainty_list);
     next_pre_list = cell2mat(next_pre_list);
     decision_list_for_pre = cell2mat(decision_list_for_pre);
-    uncertainty_list = cell2mat(uncertainty_list);
-
+    
+    uncertainty_contrib = cell2mat(uncertainty_contrib);
+    
     if adp_opt.next_pre_collapse_duplicate || adp_opt.ops_collapse_duplicate
         % Identify unique next_pre_states, extract corresponding maps and
         % collapse set of next states to explore
@@ -389,39 +396,39 @@ for t = problem.n_periods:-1:1
     %>>>     compute after_random operations cost
     if not(isempty(problem.fOpsAfterRandom))
         % Compute unique ops costs, using internal Ops loop
-        after_rand_cost = problem.fOpsAfterRandom(params_only, t, ...
+        after_random_ops = problem.fOpsAfterRandom(params_only, t, ...
             next_pre_list, decision_list_for_pre, uncertainty_list);
     else
-        after_rand_cost = 0;
+        after_random_ops = 0;
     end
     
     
     % Rebuild full post lists now if collapsed only for ops
     if not(adp_opt.next_pre_collapse_duplicate)
-        % Identify unique next_pre_states, extract corresponding maps and
-        % collapse set of next states to explore
+        % Rebuild list of states
         next_pre_list = next_pre_list(next_pre_to_post_map, :);
         
-        if adp_opt.ops_collapse_duplicate
-            % Rebuild full ops costs
-            after_rand_cost = after_rand_cost(next_pre_to_post_map, :);
+        if adp_opt.ops_collapse_duplicate && not(isscalar(after_random_ops))
+            % Rebuild full after random ops costs
+            after_random_ops = after_random_ops(next_pre_to_post_map, :);
         end
     end
 
     
     n_next_pre = size(next_pre_list, 1);    
-    val_next_pre_list = zeros(n_next_pre, 1);    
+    next_pre_value = zeros(n_next_pre, 1);    
     
     %>>>     for each next_pre_state
     %Gather contributions for this set of next_pre_states
-    parfor next_pre_idx = 1:n_next_pre
+%TODO: convert to parfor
+    for next_pre_idx = 1:n_next_pre
         
         %>>>       FindOptimalDecision (based on decision_costs and next post_decision value function) 
         %>>>       compute next_pre_value as sum(optimal_decision_cost + optimal_post_vfun_value) 
         if t == n_periods
             % Note: If looking ahead from the final decision period, there
             % will be no next period decision, only terminal values. 
-            val_next_pre_list(next_pre_idx) = ...
+            next_pre_value(next_pre_idx) = ...
                 this_vfun.approx(next_pre_list(next_pre_idx, :), vfun_approx_params{:}); %#ok<PFBNS>      
         else
             next_pre_state = next_pre_list(next_pre_idx, :);
@@ -433,7 +440,7 @@ for t = problem.n_periods:-1:1
 
             %Compute post-decision value function for this time period
             %(store in t+1 money)
-            val_next_pre_list(next_pre_idx) = next_dec_contrib + next_post_val;
+            next_pre_value(next_pre_idx) = next_dec_contrib + next_post_val;
                 
         end
     end
@@ -442,57 +449,75 @@ for t = problem.n_periods:-1:1
             fprintf('%d\n', adp_opt.sbi_state_samples_per_time(t))
     end
     
-    
-    %>>>       compute post_random_val as sum( uncertainty_contribution, after_random_ops, (1-disc_rate) * next_pre_value) 
-
-    
-%% >>>>>>>>>>>>>>> EDIT MARKER <<<<<<<<<<<<<<<<<<
-    %TODO:
-    %>>>     compute E[random_value] as sum(post_random_val)/n_unique_next_pre 
-    %>>>     compute total post_decision_value as sum(after_dec_ops_cost, expected_random_value) 
-
-    %Compute EVs
-    %Find possible next pre-descision states for each post state
-    for s = 1:adp_opt.sbi_state_samples_per_time(t);
-        %Flag NaNs for removal
-        valid_val = not(isnan(val_list{s}));
-
-        % Check sample quality
-        %Note using strict > allows sbi_min_ok_for_ev to be set to 0 to
-        %require only one valid forward sample
-        if nnz(valid_val)/size(val_list{s}, 1) > adp_opt.sbi_min_ok_for_ev
-            exp_vals(s) = val_list{s}(valid_val)' * probability_list{s}(valid_val);
-        else
-            exp_vals(s) = NaN;
+    % Rebuild full post lists now if collapsed for next pre
+    if adp_opt.next_pre_collapse_duplicate
+        % Rebuild next period value list
+        next_pre_value = next_pre_value(next_pre_to_post_map, :);
+       
+        if adp_opt.ops_collapse_duplicate && not(isscalar(after_random_ops))
+            % Rebuild full after random ops costs
+            after_random_ops = after_random_ops(next_pre_to_post_map, :);
         end
     end
+    
+    %>>>       compute post_random_val as sum( uncertainty_contribution, after_random_ops, (1-disc_rate) * next_pre_value) 
+    after_random_value = uncertainty_contrib + after_random_ops + (1-problem.discount_rate) * next_pre_value;
 
-    %Remove NaNs
-    valid_ev = not(isnan(exp_vals));
+    % report number of invalid after_random values. These typically
+    % represent locations where the value function in the next period is
+    % too sparse for accurate estimates using current vfun_approx_params,
+    % though could also be invalid uncertainty_contrib or after_random_ops
+    if adp_opt.verbose && (nnz(isnan(after_random_value)) > 0)
+            fprintf('Ignoring %d/%d invalid entries in expectation of post-decision\n', ...
+                nnz(isnan(after_random_value)), length(after_random_value))
+    end
 
-    % Check sample quality
-    if any(valid_ev)
+    %reshape after_random_value to have one row per post_decision state
+    % Note: reshape first fills by column so need to create then transpose
+    after_random_value = reshape(after_random_value, [], n_post_state)';
+    
+    %>>>     compute E[random_value] as sum(post_random_val)/n_unique_next_pre 
+    expected_random_value = mean(after_random_value, 2, 'omitnan');
+    
+    % Flag rows with insufficient valid values to get a good expected value
+    %Note using strict > (not >=) allows sbi_min_ok_for_ev to be set to 0 to
+    %require only one valid forward sample
+    invalid_mask = sum(isnan(after_random_value),2) ./ adp_opt.sbi_uncertain_samples_per_post(t) > adp_opt.sbi_min_ok_for_ev;
+    expected_random_value(invalid_mask) = NaN;
+    
+    %>>>     compute total post_decision_value as sum(after_dec_ops_cost, expected_random_value)
+    post_decision_value = after_decision_ops + expected_random_value;
+
+    %>>>   build post decision value function for current time
+    % First flag and remove NaNs to ensure a clean function approximation
+    valid_post_val_map = not(isnan(post_decision_value));
+
+    
+    if any(valid_post_val_map)
         %Add any valid points to the function approximation
-        if not(isempty(fn.PostToVfun))
-            post_state_list = fn.PostToVfun(problem, post_state_list(valid_ev,:), t);
+        if not(isempty(problem.fMapState2Vfun))
+            post_state_list(valid_post_val_map,:) = problem.fMapState2Vfun(problem, post_state_list(valid_post_val_map,:), t);
         end
-        post_vfun(t).update(post_state_list, exp_vals(valid_ev,:));
+        post_vfun(t).update(post_state_list(valid_post_val_map,:), post_decision_value(valid_post_val_map,:));
     else
         err_msg = sprintf('No valid new post_vfun points at t=%d. Aborting Sampled Backward Induction', t);
         err_id = 'ADP:SBI:NoValidPts';
-        %Warn & abort if no valid new points
-        if nargout > 1
-            error(err_id, err_msg) %#ok<SPERR> b/c want to reuse msg
-        else
+        %If no valid new points warn when we are extending an existing
+        %value function (which may have values for prior periods)
+        if adp_opt.old_results
             warning(err_id, err_msg) %#ok<SPWRN> b/c want to reuse msg
             break
+        else
+            %or abort if no existing value function since we won't be able
+            %to get valid earlier values
+            error(err_id, err_msg) %#ok<SPERR> b/c want to reuse msg
         end
     end
 
 end
+% Note: Finished building function approximation
 
-
-%-- Finished building function approximation
+%% >>>>>>>>>>>>>>> EDIT MARKER <<<<<<<<<<<<<<<<<<
 
 % If full results requested, find the optimial first period build and build
 % the results structure
