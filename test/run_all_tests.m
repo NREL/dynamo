@@ -5,5 +5,8 @@
 %% Random Process related tests
 doctest rpDiscreteSample
 
+%% Function Approximation related tests
+doctest setSingleItem
+
 %% Example related tests
 doctest doctest_MultiInv

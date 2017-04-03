@@ -35,7 +35,7 @@ classdef setBasic < AbstractSet
         function obj = setBasic(sample_minmax, sample_type, sample_step)
         % CONSTRUCTOR (setBasic)
         %
-        % obj = setNBasic(sample_minmax, sample_type)
+        % obj = setBasic(sample_minmax, sample_type)
         %
         % obj = setBasic(sample_minmax, sample_type, sample_step)
 
@@ -84,9 +84,9 @@ classdef setBasic < AbstractSet
         %  Values are scaled to fill the entire range. Assumed constant
         %  over all time
         %
-        % out = setBaiscObject.sample(t)  
+        % out = setBasicObject.sample()  
         %           Return a single sample
-        % out = setBasicObject.sample(t, N)  
+        % out = setBasicObject.sample(N)  
         %           Return N samples
         % out = setBasicObject.sample(N, sample_type)  
         %           First initializes sampling to the specified type (e.g.
@@ -119,8 +119,6 @@ classdef setBasic < AbstractSet
         %% ===== Support for discrete usage
         % These need to be defined even for continuous processes, for
         % compatability with DP.
-        %
-        % IMPORTANT: all processes must have a single, starting state for t=0
         
         function value_list = as_array (obj, discrete_steps)
         % AS_ARRAY List possible (discrete) states
