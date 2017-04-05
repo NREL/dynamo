@@ -520,7 +520,7 @@ end
 %-- Find optimal build for first period (single state)
 first_state = problem.state_set{1}.as_array();
 if size(first_state, 1) > 1
-    warning('adp:MultipleFirstStates', 'Multiple first period states defined, using first')
+    warning('adp:MultipleFirstStates', 'Multiple initial states defined, using first in list')
     first_state = first_state(1, :);
 end
 

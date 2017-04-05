@@ -40,6 +40,7 @@ classdef rpDiscreteSample < RandProcess
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  10  2016-04-05 14:53  BryanP      First step to value-only states: fixed dlistnext 
 %   9  2016-xx           BryanP      Corrected time indexing (reported to dynamo 3/2017) 
 %   8  2016-05-01 03:25  BryanP      Expose sample() and add support for vectorized samples
 %   7  2016-04-29 00:25  BryanP      Use uniform probability if P_List not provided
@@ -219,7 +220,7 @@ classdef rpDiscreteSample < RandProcess
             end
         end
 
-        function [value_list, state_n_list, prob] = dlistnext (obj, state_n, t )
+        function [value_list, state_n_list, prob] = dlistnext (obj, state, t )
         % DLISTNEXT List next discrete states & probabilities
         %
         % List possible next states (by number) along with conditional
@@ -230,16 +231,14 @@ classdef rpDiscreteSample < RandProcess
         % If t and/or state_n are not defined, the current simulation time
         % and state are assumed
             if nargin < 3
-                [value_list, state_n_list, prob] = obj.dlistnext(state_n, obj.t);
+                [value_list, state_n_list, prob] = obj.dlistnext(state, obj.t);
                 return
             end
 
             t = min(floor(t), obj.Tmax);
-            if nargin > 2 && not(isempty(state_n)) && ...
-                        ( state_n > length(obj.ValueMap) ...
-                          || not(all(ismember(state_n,obj.Slist{t+1})))...
-                        )
-                error('RandProcess:InvalidState', 'State #%d is not valid at time %d', state_n, t)
+            if nargin > 2 && not(isempty(state)) && ...
+                          not(all(ismember(state,obj.Slist{t}, 'rows')))
+                error('RandProcess:InvalidState', 'State %s is not valid at time %d', state, t)
             else
                 %if we get here, we know the state is valid
                 [value_list, state_n_list, prob] = obj.state_info(t+1);

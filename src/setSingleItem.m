@@ -59,7 +59,7 @@ classdef setSingleItem < AbstractSet
     
     methods
         function obj = setSingleItem(value_row_vector, ~)
-        % CONSTRUCTOR (setBasic)
+        % CONSTRUCTOR (setSingleItem)
         %
         % obj = setNBasic(sample_minmax, sample_type)
         %
