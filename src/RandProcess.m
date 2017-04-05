@@ -5,13 +5,14 @@ classdef RandProcess < AbstractSet
 % subclasses) for a Random Process for use with dynamic programming and
 % other simulations
 %
-% IMPORTANT: all processes must have a single, starting state for t=0
+% IMPORTANT: all processes must have a single, starting state for t=1
 %
 % originally by Bryan Palmintier 2010
 
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   9  2017-04-05 15:12  BryanP      Setup for 1-based t indexing and pure value states (no state_n)  
 %   8  2016-10-07 01:40  BryanP      Convert as_array to wrapper for dlistnext 
 %   7  2016-10-06 11:40  DheepakK    as_array that throws an error
 %   6  2016-07-07 09:40  BryanP      Extracted out common pieces to form AbstractSet class
@@ -39,15 +40,7 @@ classdef RandProcess < AbstractSet
         %
         % To get a list of all possible states pass with t='all', in which
         % case, t_max is provided to bound the problem size.
-        [value_list, state_n_list] = dlist (obj, t)
-
-        % DLISTPREV List previous discrete states & probabilities
-        %
-        % List possible previous states (by number) along with conditional
-        % probability P(s_t | s_{t-1})
-        %
-        % If t is not defined, the current simulation time is assumed
-        [value_list, state_n_list, prob] = dlistprev (obj, state_n, t )
+        state_list = dlist (obj, t)
 
         % DLISTNEXT List next discrete states & probabilities
         %
@@ -61,13 +54,7 @@ classdef RandProcess < AbstractSet
         %
         % If t is out of the valid range, an error with ID
         % 'RandProcess:InvalidTime'
-        [value_list, state_n_list, prob] = dlistnext (obj, state_n, t )
-
-        % DNUM2VAL Convert discrete state number to a value
-        values = dnum2val (obj, state_n_list )
-
-        % DVAL2NUM Convert the value(s) to associate discrete state numbers
-        state_n_list = dval2num (obj, values )
+        [next_state_list, prob] = dlistnext (obj, state, t )
 
         % DSIM Simulate discrete process.
         %
@@ -78,11 +65,11 @@ classdef RandProcess < AbstractSet
         % order times will be sorted before simulation and duplicate times
         % will return the same result
         %
-        % Invalid times (t<=0) return NaN
+        % Invalid times (t<1) return NaN
         %
         % Note: after calling sim, the process internal time will be set to
         % the final value of t_list
-        [value_series, state_n_series] = dsim(obj,t_list, initial_value)
+        state_series = dsim(obj, t_list, initial_value)
 
         %% ===== General (discrete or continuous) Methods
 
@@ -97,7 +84,7 @@ classdef RandProcess < AbstractSet
         %
         % Note: after calling sim, the process internal time will be set to
         % the final value of t_list
-        [value_series, state_n_series] = sim(obj, t_list, initial_value)
+        state_series = sim(obj, t_list, initial_value)
 
         % RANGE Find value range for given time
         %
@@ -106,19 +93,19 @@ classdef RandProcess < AbstractSet
         % is returned.
         %
         % To get the possible range across all times use t='all'
-        [value_range, state_n_range] = range(obj, t)
+        state_value_range = range(obj, t)
 
         %% ===== Additional simulation support
         %STEP simulate forward
         %
         % by default steps forward by delta_t = 1
-        [value, state_n, t] = step(obj, delta_t)
+        [state, t] = step(obj, delta_t)
 
         %CURSTATE Return the current state of the simulation
-        [value, state_n, t] = curState(obj)
+        [state, t] = curState(obj)
 
         %RESET reset simulation to t=0 and provided intitial_value
-        reset(obj, initital_value)
+        reset(obj, initial_value)
 
     end
 
@@ -128,7 +115,7 @@ classdef RandProcess < AbstractSet
             %For a RandProcess, as_array is a simple wrapper around
             %dlistnext for the current state and time.c
 
-            [val, ~, prob] = obj.dlistnext(obj.cur_state, obj.t);
+            [val, prob] = obj.dlistnext(obj.cur_state, obj.t);
 
         end
 

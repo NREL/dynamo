@@ -27,7 +27,6 @@ classdef rpDiscreteSample < RandProcess
 %        3
 % 
 % Notes:
-%  - IMPORTANT: the value list starts at t=0!
 %  - For any t greater than the max set in the ValueList, the final value
 %    from the list is assumed to be held constant
 %  - For non-integer times, the output is assumed to remain at the value
@@ -50,13 +49,13 @@ classdef rpDiscreteSample < RandProcess
 %   3  2011-05-03 01:04  BryanP      Fixed:
 %                                      - time/index in dlistnext & prev
 %                                      - random sample on reset
-%                                      - dlist state_n order for non-ascending values
+%                                      - dlist state order for non-ascending values
 %   2  2011-04-12 09:45  BryanP      Initial coding complete
 %   1  2011-04-08 14:30  BryanP      Adapted from rpLattice v6
 
 
     properties
-        t = 0;        % Current time
+        t = 1;        % Current time
     end
 
     % Read only properties
@@ -69,21 +68,20 @@ classdef rpDiscreteSample < RandProcess
 
     % Internal properties
     properties (Access='protected')
-        Slist = {};     % cell row vector of state numbers
         CdfList = {};   % cumulative distribution for each time period
 
         ValueMap = [];  % List of unique values in Vlist, index provides state number
-        Tmax = 0;       % Largest time with specified distribution
+        Tmax = 1;       % Largest time with specified distribution
         Tol = 1e-6;      % Tolerance for checking probabilities sum to 1
     end
 
     methods (Access = protected)
         %% ===== Helper Functions
-        function [value_list, state_n_list, prob] = state_info (obj, t )
+        function [state_list, prob] = state_info (obj, t )
         % STATE_INFO Helper function to return full set of state
         % information for a given time
-            if t < 0
-                error('RandProcess:InvalidTime', 'Only t>0 valid for rpDiscreteSample')
+            if t < 1
+                error('RandProcess:InvalidTime', 'Only t>1 valid for rpDiscreteSample')
             else
                 % make sure time is an integer
                 t = floor(t);
@@ -92,10 +90,8 @@ classdef rpDiscreteSample < RandProcess
                 t = min(t, obj.Tmax);
 
                 %if we get here, we know the state is valid
-                % add one b/c we are using t=0 as initial condition
-                value_list = obj.Vlist{t+1};
-                state_n_list = obj.Slist{t+1};
-                prob = obj.Plist{t+1};
+                state_list = obj.Vlist{t};
+                prob = obj.Plist{t};
             end
         end
 
@@ -110,13 +106,16 @@ classdef rpDiscreteSample < RandProcess
                 obj.Vlist = v_list;
                 obj.Plist = p_list;
 
-                obj.Tmax = length(v_list) - 1;
+                %Note: Tmax is the max t with a unique value list. passing
+                %a t>Tmax will simply return the Tmax values (zero order
+                %hold)
+                obj.Tmax = length(v_list);
 
                 % If probabilites not provided, assume uniform across all
                 % values
                 if nargin < 2
                     obj.Plist = cell(size(obj.Vlist));
-                    for t_idx = 1:obj.Tmax+1
+                    for t_idx = 1:obj.Tmax
                         num_items = size(obj.Vlist{t_idx},1);
                         obj.Plist{t_idx} = ones(num_items,1) ./ num_items;
                     end
@@ -125,32 +124,30 @@ classdef rpDiscreteSample < RandProcess
                     obj.Plist = p_list;
                 end
 
-                obj.ValueMap = unique(vertcat(v_list{:}));
-
-                obj.Slist = cell(size(v_list));
                 % Loop through time for setting up additional parameters
-                for t_idx = 1:obj.Tmax+1
-                    %Create State list
-                    [~, obj.Slist{t_idx}, org_order] = intersect(obj.ValueMap, v_list{t_idx});
-                    obj.Slist{t_idx}(org_order) = obj.Slist{t_idx};
+                for t_idx = 1:obj.Tmax
+                    %Create Cumulative distribution function for easier
+                    %mapping of random samples
                     obj.CdfList{t_idx} = cumsum(obj.Plist{t_idx});
 
-                    %Check for valid probability vectors
+                    %Check for valid probability vectors 
+                    %  Probability must sum to 1
                     if abs(obj.CdfList{t_idx}(end) - 1) > obj.Tol
-                        error('RandProc:ProbSum1', 'Probabilities must sum to 1.0 for t=%d', t_idx-1)
+                        error('RandProc:ProbSum1', 'Probabilities must sum to 1.0 for t=%d', t_idx)
                     end
 
+                    %  Must be same size as value list
                     if size(obj.Plist{t_idx}) ~= size(obj.Vlist{t_idx})
-                        error('rpDiscreteSample:ValProbMismatch', 'Value & Probability vectors must have equal size for element=%d', t_idx)
+                        error('rpDiscreteSample:ValProbMismatch', 'Value & Probability vectors must have equal size for time=%d', t_idx)
                     end
                 end
-                obj.cur_state = obj.Slist{1}(1);
                 obj.t = 1;
+                obj.cur_state = obj.Vlist{obj.t}(1);
             end
         end
         
         %% == Additional public methods
-        function [value, state_n] = sample(obj, t, N, varargin)
+        function [value, state] = sample(obj, t, N, varargin)
             %SAMPLE draw samples for the given time
             % Note: if N is not specified, defaults to a single sample
             if nargin < 2
@@ -165,12 +162,13 @@ classdef rpDiscreteSample < RandProcess
 
             idx_at_t = zeros(N,1);
             for samp_idx = 1:N
-                idx_at_t(samp_idx) = find(rand(1) <= obj.CdfList{t+1}, 1, 'first');
+                idx_at_t(samp_idx) = find(rand(1) <= obj.CdfList{t}, 1, 'first');
             end
-            state_n = obj.Slist{t+1}(idx_at_t,:);
-            value = obj.Vlist{t+1}(idx_at_t,:);
+            value = obj.Vlist{t}(idx_at_t,:);
         end
 
+%% ---- EDIT MARKER
+        
         %% ===== Support for discrete usage
         % These need to be defined even for continuous processes, for
         % compatability with DP.
@@ -193,33 +191,6 @@ classdef rpDiscreteSample < RandProcess
             end
         end
 
-        function [value_list, state_n_list, prob] = dlistprev (obj, state_n, t )
-        % DLISTPREV List previous discrete states & probabilities
-        %
-        % List possible previous states (by number) along with conditional
-        % probability P(s_{t-1} | s_t). Since the samples are independant
-        % of each other (ie not path dependant), this simplifies to
-        % P(s_{t-1})
-        %
-        % If t and/or state_n are not defined, the current simulation time
-        % and state are assumed
-            if nargin < 3 || isempty(t)
-                [value_list, state_n_list, prob] = obj.dlistprev([], obj.t);
-                return
-            end
-
-            t = min(floor(t), obj.Tmax);
-            if nargin > 1 && not(isempty(state_n)) && ...
-                        ( state_n > length(obj.ValueMap) ...
-                          || not(all(ismember(state_n,obj.Slist{t+1})))...
-                        )
-                error('RandProcess:InvalidState', 'State #%d is not valid at time %d', state_n, t)
-            else
-                %if we get here, we know the state is valid
-                [value_list, state_n_list, prob] = obj.state_info(t-1);
-            end
-        end
-
         function [value_list, state_n_list, prob] = dlistnext (obj, state, t )
         % DLISTNEXT List next discrete states & probabilities
         %
@@ -228,7 +199,7 @@ classdef rpDiscreteSample < RandProcess
         % of each other (ie not path dependant), this simplifies to
         % P(s_{t+1})
         %
-        % If t and/or state_n are not defined, the current simulation time
+        % If t and/or state are not defined, the current simulation time
         % and state are assumed
             if nargin < 3
                 [value_list, state_n_list, prob] = obj.dlistnext(state, obj.t);
@@ -241,41 +212,12 @@ classdef rpDiscreteSample < RandProcess
                 error('RandProcess:InvalidState', 'State %s is not valid at time %d', state, t)
             else
                 %if we get here, we know the state is valid
+                % t+1 is right b/c want next state
                 [value_list, state_n_list, prob] = obj.state_info(t+1);
             end
         end
 
-        function values = dnum2val (obj, state_n_list )
-        % DNUM2VAL Convert discrete state number to a value
-            try
-                values = obj.ValueMap(state_n_list);
-            catch exception
-                bad = find(or(state_n_list > length(obj.ValueMap), state_n_list < 1), 1);
-                error('rpDiscreteSample:InvalidStateNum', ...
-                    'Attempt to find value for invalid state nums: %d', ...
-                    state_n_list(bad))
-            end
-            if size(values) ~= size(state_n_list)
-                values = reshape(values, size(state_n_list));
-            end
-        end
-
-        function state_n_list = dval2num (obj, values )
-        % DVAL2NUM Convert the value(s) to associate discrete state numbers
-            try
-                state_n_list = arrayfun(@(x) find(obj.ValueMap == x, 1), values);
-            catch exception
-                bad = find(not(ismember(values, obj.ValueMap)), 1);
-                error('rpDiscreteSample:InvalidValue', ...
-                    'Attempt to find value for invalid value: %g', ...
-                    values(bad))
-            end
-            if size(values) ~= size(state_n_list)
-                state_n_list = reshape(state_n_list, size(values));
-            end
-        end
-
-        function [value_series, state_n_series] = dsim(obj, t_list, initial_value) %#ok<INUSD>
+        function state_series = dsim(obj, t_list, initial_value) %#ok<INUSD>
         % DSIM Simulate discrete process.
         %
         % A column vector for t is assumed to be a series of times for
@@ -294,9 +236,9 @@ classdef rpDiscreteSample < RandProcess
             ok = (t_list >= 0);
 
             %initialize outputs
-            value_series = zeros(size(t_list));
-            value_series(not(ok)) = NaN;
-            state_n_series = zeros(size(value_series));
+            state_series = zeros(size(t_list));
+            state_series(not(ok)) = NaN;
+            state_n_series = zeros(size(state_series));
             state_n_series(not(ok)) = NaN;
 
             %only simulate valid values of t_list
@@ -327,7 +269,7 @@ classdef rpDiscreteSample < RandProcess
                 v_list = v_list(sample_map);
 
                 %Now Stuff the correct values into the full output list
-                value_series(ok) = v_list;
+                state_series(ok) = v_list;
                 state_n_series(ok) = s_list;
             end
         end
@@ -393,7 +335,7 @@ classdef rpDiscreteSample < RandProcess
 
 
         %% ===== Additional simulation support
-        function [value, state_n, t] = step(obj, delta_t)
+        function [value, state, t] = step(obj, delta_t)
         %STEP simulate forward or backward
         %
         % by default steps forward by delta_t = 1
@@ -406,7 +348,7 @@ classdef rpDiscreteSample < RandProcess
             %check if it is valid, if not return empty results
             if new_t < 0
                 value = [];
-                state_n = [];
+                state = [];
                 t = obj.t;
                 return
             else
@@ -414,15 +356,15 @@ classdef rpDiscreteSample < RandProcess
                 if floor(obj.t) == floor(new_t)
                     %No need to actually change, b/c we have discrete steps
                     %that round
-                    state_n = obj.cur_state;
-                    value = obj.dnum2val(state_n);
+                    state = obj.cur_state;
+                    value = obj.dnum2val(state);
                 else
                     t = new_t;
-                    [value, state_n] = obj.sample(t);
+                    [value, state] = obj.sample(t);
 
                     % Update our stored state
                     obj.t = t;
-                    obj.cur_state = state_n;
+                    obj.cur_state = state;
 
                 end
 
@@ -430,10 +372,10 @@ classdef rpDiscreteSample < RandProcess
 
         end
 
-        function [value, state_n, t] = curState(obj)
+        function [value, state, t] = curState(obj)
         %CURSTATE Return the current state of the simulation
             value = obj.ValueMap(obj.cur_state);
-            state_n = obj.cur_state;
+            state = obj.cur_state;
             t = obj.t;
         end
 
