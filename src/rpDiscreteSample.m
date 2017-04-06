@@ -25,20 +25,86 @@ classdef rpDiscreteSample < RandProcess
 %    corresponding to the previous integer time step (Zero-order hold)
 %
 % Examples:
-% % 1-D state with constant (in time) probability distribution 
-% >>> rng(0); s = rpDiscreteSample({[0, 1, 2, 3]'}, {[0.1, 0.5, 0.35, 0.05]'});
-%
-% >>> s.sample()
+% % 1-D state with constant (in time) values and specified probability distribution 
+% >> rng(0); s = rpDiscreteSample({[0, 1, 2, 3]'}, {[0.1, 0.5, 0.35, 0.05]'});
+% >> s.sample()
 % ans = 
-%        3
+%        2
+%
+%
+% % 2-D state with different first period values and automatic uniform distribution
+% >> s = rpDiscreteSample({[0 1; 1 2; 3 4; 5 6], [10 11; 20 21; 30 31]});
+% >> [t1_vals, t1_prob] = s.dlistnext()
 % 
-% see also RandProc, rpMarkov, rpList, rpLattice
+% t1_vals =
+% 
+%     10    11
+%     20    21
+%     30    31
+% 
+% 
+% t1_prob =
+% 
+%     0.3333
+%     0.3333
+%     0.3333
+%
+% >> s.cur_state()
+%
+% ans =
+% 
+%      0     1
+% 
+% >> s.t
+% 
+% ans =
+% 
+%      1
+% 
+% >> s.step()
+% 
+% ans =
+% 
+%     30    31
+% 
+% >> s.t
+% 
+% ans =
+% 
+%      2
+% 
+% >> s.step()
+% 
+% ans =
+% 
+%     20    21
+% 
+% >> s.step()
+% 
+% ans =
+% 
+%     10    11
+% 
+% >> s.t
+% 
+% ans =
+% 
+%      4
+% 
+%
+% see also RandProc, rpDeterministic, rpMarkov, rpLattice
 %
 % originally by Bryan Palmintier 2011
 
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  12  2017-04-05 23:42  BryanP      Bugfixes & add checkState()
+%  11  2017-04-05 22:02  BryanP      Overhaul complete:
+%                                       -- t now 1 indexed
+%                                       -- Removed any numbered states. Now only value-based states 
+%                                       -- Removed extraneous functions including backward listing 
+%                                       -- Put t as first parameter for most methods, that use t, except sample 
 %  10  2016-04-05 14:53  BryanP      First step to value-only states: fixed dlistnext 
 %   9  2016-xx           BryanP      Corrected time indexing (reported to dynamo 3/2017) 
 %   8  2016-05-01 03:25  BryanP      Expose sample() and add support for vectorized samples
@@ -54,45 +120,14 @@ classdef rpDiscreteSample < RandProcess
 %   1  2011-04-08 14:30  BryanP      Adapted from rpLattice v6
 
 
-    properties
-        t = 1;        % Current time
-    end
-
-    % Read only properties
-    properties (GetAccess = 'public', SetAccess='protected')
+    % Internal properties
+    properties (Access='protected')
         Vlist = {};    % cell row vector of values
         Plist = {};    % cell row vector of probabilities
 
-        cur_state = NaN;    %Current state number for simulation
-    end
-
-    % Internal properties
-    properties (Access='protected')
         CdfList = {};   % cumulative distribution for each time period
         Tmax = 1;       % Largest time with specified distribution
         Tol = 1e-6;      % Tolerance for checking probabilities sum to 1
-    end
-
-    methods (Access = protected)
-        %% ===== Helper Functions
-        function [state_list, prob] = state_info (obj, t )
-        % STATE_INFO Helper function to return full set of state
-        % information for a given time
-            if t < 1
-                error('RandProcess:InvalidTime', 'Only t>1 valid for rpDiscreteSample')
-            else
-                % make sure time is an integer
-                t = floor(t);
-
-                % and use t=Tmax for any t>Tmax
-                t = min(t, obj.Tmax);
-
-                %if we get here, we know the state is valid
-                state_list = obj.Vlist{t};
-                prob = obj.Plist{t};
-            end
-        end
-
     end
 
     methods
@@ -150,16 +185,24 @@ classdef rpDiscreteSample < RandProcess
         end
         
         %% == Additional public methods
-        function state_list = sample(obj, t, N, varargin)
-            %SAMPLE draw samples for the given time
-            % Note: if N is not specified, defaults to a single sample
+        function state_list = sample(obj, N, t, varargin)
+            %SAMPLE draw state samples for the given time
+            % 
+            % Usage:
+            %   state_list = disc_samp_object.sample()
+            %       One sample state from current time
+            %   state_list = sample(obj, N)
+            %       Return N samples from current time
+            %   state_list = sample(obj, N, t)
+            %       Specify time period
             if nargin < 2
-                t = obj.t;
-            end
-            if nargin < 3
                 N = 1;
             end
-
+            
+            if nargin < 3 || isempty(t)
+                t=obj.t;
+            end
+            
             %Handle any non integer or large values for time
             t = min(floor(t), obj.Tmax);
 
@@ -182,6 +225,9 @@ classdef rpDiscreteSample < RandProcess
         % are returned.
         %
         % To get a list of all possible states pass with t='all'
+        %
+        % Note: probabilities can't be returned, since transition probabilities
+        % are in general a function of the current state.
             if nargin < 2 || isempty(t)
                 state_list = obj.dlist(obj.t);
             elseif (ischar(t) && strcmp(t, 'all'))
@@ -191,7 +237,7 @@ classdef rpDiscreteSample < RandProcess
             end
         end
 
-        function [state_list, probability_list] = dlistnext (obj, state, t )
+        function [state_list, probability_list] = dlistnext (obj, t, state)
         % DLISTNEXT List next discrete states & probabilities
         %
         % List possible next states (by number) along with conditional
@@ -201,20 +247,27 @@ classdef rpDiscreteSample < RandProcess
         %
         % If t and/or state are not defined, the current simulation time
         % and state are assumed
-            if nargin < 3
-                [state_list, probability_list] = obj.dlistnext(state, obj.t);
+            if nargin == 1
+                [state_list, probability_list] = obj.dlistnext(obj.t, obj.cur_state);
                 return
             end
 
-            t = min(floor(t), obj.Tmax);
-            if nargin > 2 && not(isempty(state)) && ...
-                          not(all(ismember(state,obj.Vlist{t}, 'rows')))
-                error('RandProcess:InvalidState', 'State %s is not valid at time %d', state, t)
-            else
-                %if we get here, we know the state is valid
-                % t+1 is right b/c want next state
-                [state_list, probability_list] = obj.state_info(t+1);
+            if nargin == 2 || isempty(state)
+                error('RandProcess:MissingState', 'Must specify state when specifying time')
             end
+
+            % adapt time to give valid index
+            t = min(floor(t), obj.Tmax);
+            
+            obj.checkState(t, state)
+
+            %if we get here, we know the state is valid
+            %
+            % For the discrete sample, each sample is independant, so
+            % just return the next periods value and sample options
+            %
+            %Note: t+1 is right b/c want next state
+            [state_list, probability_list] = obj.state_info(t+1);
         end
 
         function state_series = dsim(obj, t_list, initial_value) %#ok<INUSD>
@@ -299,6 +352,30 @@ classdef rpDiscreteSample < RandProcess
         % is returned.
         %
         % To get the possible range across all times use t='all'
+        %
+        % Examples
+        % >> s = rpDiscreteSample({[0 1; 1 2; 3 4; 5 6], [10 11; 20 21; 30 31]});
+        % >> s.range()
+        %
+        % ans =
+        %
+        %      0     1
+        %      5     6
+        %
+        % >> s.range(2)
+        %
+        % ans =
+        %
+        %     10    11
+        %     30    31
+        %
+        % >> s.range('all')
+        %
+        % ans =
+        %
+        %      0     1
+        %     30    31
+        
             if nargin < 2 || isempty(t)
                 t= obj.t;
             end
@@ -336,14 +413,14 @@ classdef rpDiscreteSample < RandProcess
                 t = obj.t;
                 return
             else
-                %if new time is valid simulate forward or back as needed
+                %if new time is valid simulate forward as needed
                 if floor(obj.t) == floor(new_t)
                     %No need to actually change, b/c we have discrete steps
                     %that round
                     state = obj.cur_state;
                 else
                     t = new_t;
-                    state = obj.sample(t);
+                    state = obj.sample(1, t);
 
                     % Update our stored state
                     obj.t = t;
@@ -354,24 +431,43 @@ classdef rpDiscreteSample < RandProcess
             end
 
         end
-
-        function [state, t] = curState(obj)
-        %CURSTATE Return the current state of the simulation
-            state = obj.cur_state;
-            t = obj.t;
-        end
-
-        function reset(obj, initial_state)
-        %RESET reset simulation to t=1 and provided initial_value. If no
-        %initial value provided, we randomly sample the first state
-            obj.t = 1;
-            if nargin > 1
-                obj.cur_state = initial_state;
-            else
-                obj.cur_state = obj.Vlist{1}(find(rand() <= obj.CdfList{obj.t}, 1, 'first'), :);
+        
+        function state_ok = checkState(obj, t, state)
+            % CHECKSTATE Check that state is valid for a given time
+            %
+            % rand_proc_object.checkState(t, state)
+            %       Raise 'RandProc:InvalidState' error if t is not valid in time t
+            % state_ok = rand_proc_object.checkState(t, state)
+            %       No error, simply return true/false if state is
+            %       valid/not
+            state_ok = not(isempty(state)) && ismember(state, obj.Vlist{t}, 'rows');
+            
+            if nargout == 0 && not(state_ok)
+                error('RandProcess:InvalidState', 'State %s is not valid at time %d', state, t)
             end
         end
-
     end
-
+    
+    methods (Access = protected)
+        %% ===== Helper Functions
+        function [state_list, prob] = state_info (obj, t )
+            % STATE_INFO Helper function to return full set of state
+            % information for a given time
+            if t < 1
+                error('RandProcess:InvalidTime', 'Only t>1 valid for rpDiscreteSample')
+            else
+                % make sure time is an integer
+                t = floor(t);
+                
+                % and use t=Tmax for any t>Tmax
+                t = min(t, obj.Tmax);
+                
+                %if we get here, we know the time is valid
+                state_list = obj.Vlist{t};
+                prob = obj.Plist{t};
+            end
+        end
+        
+    end
+    
 end
