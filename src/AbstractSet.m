@@ -23,7 +23,7 @@ classdef AbstractSet < handle
     % Read-only properties (set by constructor)
     properties (SetAccess='protected')
         SampleType = '';    % Must support 'rand' & 'sobol' and gracefully handle unrecognized types
-        N_dim;                  % Number of dimensions in set's space
+        N_dim = 0;                  % Number of dimensions in set's space
         DiscreteMask;           % Boolean mask of descrete dimesions of set
     end
     
