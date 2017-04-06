@@ -297,7 +297,6 @@
 %% ============
 % SCRIPT
 % ============
-return
 %=== Script to run all commands once. Then can copy paste results into the
 %following comments to run with doctest
 

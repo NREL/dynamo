@@ -8,7 +8,7 @@ function u_list = RandSetSample(cell_of_RandProcess, t, n_samples, opt)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
-%   2  2017-04-06 00:05  BryanP      Adjusted order of calls to sample
+%   2  2017-04-06 00:05  BryanP      Adjusted order of t & n for revised sample
 %   1  2016-10-27 14:05  BryanP      Initial Code
 
 if nargin < 3 || isempty(n_samples)
