@@ -1,4 +1,8 @@
 classdef setCombinWithLimits < AbstractSet
+
+% WARNING--INCOMPLETE May not fully comply with latest AbstractSet and
+% not all functions fully implemented
+    
 %setCOMBINGWITHLIMITS set class for volume restricted Nd spaces
 %
 % Provides set standard support for listing, sampling, and range

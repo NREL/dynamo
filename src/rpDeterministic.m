@@ -1,4 +1,7 @@
 classdef rpDeterministic < RandProcess
+
+% WARNING--DO NOT USE. Not updated for latest RandProcess styles
+    
 %rpList Simple random process with deterministic outcome from list
 %
 % obj = rpList(v_list)

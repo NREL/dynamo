@@ -1,4 +1,7 @@
 function results = adpTD1(problem, varargin)
+
+% WARNING: INCOMPLETE NOT UPDATED FOR NEW PROBLEM STRUCTURE
+
 % adpTD1 Temporal Difference Optimization with lamba=1 (double pass)
 %
 % results = adpTD1(problem, adp_options)

@@ -1,10 +1,20 @@
 function partit = RandPartition(space_per_item, total_space, varargin)
-% partit = RandPartition(space_per_item, total_space, option_pairs)
+% RANDPARTITION randomly divides a given space among multiple items of arbitrary size
 %
-% space_per_item is row oriented. Handles multiple partitions with one call
-% when total_space is a vector or space_per_item has multiple rows. (or
-% both, in which case lengths must match) Use a value of 0 for items
-% capable of continuous space assignment.
+% Returns the partition, not the number of items. Uses efficient symmetric
+% Dirichlet with alpha=1 sampling to sample over the the hyperdiagonal (n-1
+% simplex) 
+%
+% Usage
+%  partit = RandPartition(space_per_item, total_space, option_pairs)
+%
+% Notes:
+%  -- space_per_item is row oriented. 
+%  -- Generates multiple sample partitions by specifying a vector for
+%  total_space or a multi-row space_per_item. If both the number of rows must match
+%  -- round() used as the default fFinalRound, which means the partit sum
+%      maybe a bit higher or lower than the total_space
+%  -- Use a space_per_item of 0 for items capable of continuous space assignment.
 %
 % Option pairs & defaults:
 %     'fRound'           @round   % function used for final rounding
@@ -20,10 +30,6 @@ function partit = RandPartition(space_per_item, total_space, varargin)
 %     % Note: In limited testing Sobol performed (much) worse than pure random
 %     'sample_set'       []       % set of (0,1] random values to use for partioning (n_samples x n_items)
 %     'round_idx_sample' []       % list of (0,1] random values to use in selecting the element to round
-%
-% Notes:
-%  -- round() used as the default fFinalRound, which means the partit sum
-%      maybe a bit higher or lower than the total_space
 %
 % Algorithms:
 %  lumpy=false: randomly samples the hyperdiagonal (n simplex). This
@@ -73,7 +79,7 @@ defaults = {
             % Note: In limited testing Sobol performed (much) worse than pure random
             'sample_set'       []       % set of (0,1] random values to use for partioning (n_samples x n_items)
             };
-opt = SetDefaultOpts(varargin, defaults);
+opt = DefaultOpts(varargin, defaults);
 
 n_items = size(space_per_item, 2);
 n_samples = max(size(space_per_item, 1), size(total_space,1));

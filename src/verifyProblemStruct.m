@@ -1,4 +1,7 @@
 function [output] = verifyProblemStruct( problem, fieldnames_cell )
+
+% WARNING: INCOMPLETE. This is a work in progress
+
 %VERIFYDPPROBLEMSTRUCT This function checks the problem for the correct
 %structure
 

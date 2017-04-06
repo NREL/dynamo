@@ -1,4 +1,7 @@
 classdef rpLattice < RandProcess
+
+% WARNING--DO NOT USE. Not updated for latest RandProcess styles
+    
 %rpLattice bi/multi-nomial lattice random process: Geometric Brownian Motion
 %
 % Random process that models a discrete random walk with constant geometric

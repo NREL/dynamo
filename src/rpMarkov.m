@@ -1,4 +1,7 @@
 classdef rpMarkov < RandProcess
+
+% WARNING--DO NOT USE. Not updated for latest RandProcess styles
+    
 %rpMarkov Generalized dynamic Markov random process
 %
 % Supports a generalized dynamic Markov random process where the

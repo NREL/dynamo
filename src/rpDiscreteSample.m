@@ -25,8 +25,8 @@ classdef rpDiscreteSample < RandProcess
 %    corresponding to the previous integer time step (Zero-order hold)
 %
 % Examples:
-%
-% >>> rng(0); s = rpDiscreteSample({[0, 1, 2, 3]'}, {[0.25, 0.25, 0.25, 0.25]'});
+% % 1-D state with constant (in time) probability distribution 
+% >>> rng(0); s = rpDiscreteSample({[0, 1, 2, 3]'}, {[0.1, 0.5, 0.35, 0.05]'});
 %
 % >>> s.sample()
 % ans = 
