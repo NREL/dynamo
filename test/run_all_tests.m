@@ -8,7 +8,7 @@ docs_to_test = {
                     %Random Processes
                     'rpDiscreteSample'
                     %Utilities
-                    'utilCurRandSetState'
+                    'utilRandSetCurState'
                     %Examples
                     'doctest_MultiInv'
                 };
