@@ -40,6 +40,7 @@ function results = adpSBI(problem, adp_opt, post_vfun)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  27  2017-04-09 22:36  BryanP      Oops, Added support for fOpsBeforeDecision. 
 %  26  2017-04-03 11:12  BryanP      Working with new problem structure 
 %  25  2017-04-02 06:00  BryanP      Made unique state collapse for ops costs optional and clean-up operations cost handling 
 %  24  2017-03-06 06:00  BryanP      Added after decision ops computation and updated psuedocode  
@@ -281,8 +282,9 @@ for t = problem.n_periods:-1:1
     %>>>     compute after random operations costs
     %>>>     create resulting next_pre_state_list
     %>>>     for each next_pre_state
+    %>>>       compute before decision operations costs
     %>>>       FindOptimalDecision (based on decision_costs and next post_decision value function) 
-    %>>>       compute next_pre_value as sum(optimal_decision_cost + optimal_post_vfun_value) 
+    %>>>       compute next_pre_value as sum(pre_dec_ops_cost + optimal_decision_cost + optimal_post_vfun_value) 
     %>>>       compute post_random_val as sum( uncertainty_contribution, after_random_ops, (1-disc_rate) * next_pre_value) 
     %>>>     compute E[random_value] as sum(post_random_val)/n_unique_next_pre 
     %>>>     compute total post_decision_value as sum(after_dec_ops_cost, expected_random_value)
@@ -421,10 +423,20 @@ for t = problem.n_periods:-1:1
     
     %>>>     for each next_pre_state
     %Gather contributions for this set of next_pre_states
+
+    %>>>       compute before decision operations costs
+    if (t < n_periods) && not(isempty(problem.fOpsBeforeDecision))
+        % Compute unique ops costs, using internal Ops loop
+        before_dec_ops = problem.fOpsBeforeDecision(params_only, t+1, next_pre_list);
+    else
+        before_dec_ops = zeros(n_next_pre, 1);
+    end
+
+    % Loop over all next pre-decision states for other values
     parfor next_pre_idx = 1:n_next_pre
         
         %>>>       FindOptimalDecision (based on decision_costs and next post_decision value function) 
-        %>>>       compute next_pre_value as sum(optimal_decision_cost + optimal_post_vfun_value) 
+        %>>>       compute next_pre_value as sum(pre_dec_ops_cost + optimal_decision_cost + optimal_post_vfun_value) 
         if t == n_periods
             % Note: If looking ahead from the final decision period, there
             % will be no next period decision, only terminal values. 
@@ -440,7 +452,7 @@ for t = problem.n_periods:-1:1
 
             %Compute post-decision value function for this time period
             %(store in t+1 money)
-            next_pre_value(next_pre_idx) = next_dec_contrib + next_post_val;
+            next_pre_value(next_pre_idx) = before_dec_ops(next_pre_idx) + next_dec_contrib + next_post_val;
                 
         end
     end
