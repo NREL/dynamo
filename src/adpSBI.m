@@ -130,7 +130,7 @@ adp_opt = utilRandSetup(adp_opt);
 % Add additional required functions as needed
 problem.fOptimalDecision = utilFunctForProblem(problem, 'fOptimalDecision', @FindOptDecFromVfun);
 problem.fRandomSample = utilFunctForProblem(problem, 'fRandomSample', ...
-    @(t, n_sample) RandSetSample(problem.random_items, t, n_sample, adp_opt.sample_opt{:}));
+    @(t, n_sample) RandSetSample(problem.random_items, n_sample, t, adp_opt.sample_opt{:}));
 
 %% ====== Additional Setup =====
 %Pad samples per period if shorter than number of periods

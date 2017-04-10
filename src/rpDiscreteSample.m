@@ -237,7 +237,7 @@ classdef rpDiscreteSample < RandProcess
             end
         end
 
-        function [state_list, probability_list] = dlistnext (obj, t, state)
+        function [next_state_list, probability_list] = dlistnext (obj, t, cur_state)
         % DLISTNEXT List next discrete states & probabilities
         %
         % List possible next states (by number) along with conditional
@@ -248,18 +248,18 @@ classdef rpDiscreteSample < RandProcess
         % If t and/or state are not defined, the current simulation time
         % and state are assumed
             if nargin == 1
-                [state_list, probability_list] = obj.dlistnext(obj.t, obj.cur_state);
+                [next_state_list, probability_list] = obj.dlistnext(obj.t, obj.cur_state);
                 return
             end
 
-            if nargin == 2 || isempty(state)
+            if nargin == 2 || isempty(cur_state)
                 error('RandProcess:MissingState', 'Must specify state when specifying time')
             end
 
             % adapt time to give valid index
             t = min(floor(t), obj.Tmax);
             
-            obj.checkState(t, state)
+            obj.checkState(t, cur_state);
 
             %if we get here, we know the state is valid
             %
@@ -267,7 +267,7 @@ classdef rpDiscreteSample < RandProcess
             % just return the next periods value and sample options
             %
             %Note: t+1 is right b/c want next state
-            [state_list, probability_list] = obj.state_info(t+1);
+            [next_state_list, probability_list] = obj.state_info(t+1);
         end
 
         function state_series = dsim(obj, t_list, initial_value) %#ok<INUSD>

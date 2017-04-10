@@ -1,13 +1,16 @@
-function u_list = RandSetSample(cell_of_RandProcess, t, n_samples, opt)
+function u_list = RandSetSample(cell_of_RandProcess, n_samples, t, opt)
 % RANDSETSAMPLE Draws the specified number of samples from a group of RandProcess objects 
 % 
 % Produces a row vector for each sample set
 %
 % Note: no probability returned, since this is a pure monte carlo sample
+%
+% See also: RandSetNextJoint, RandProcess
 
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   3  2017-04-09 20:05  BryanP      Match revised sample() order in our signature, too 
 %   2  2017-04-06 00:05  BryanP      Adjusted order of t & n for revised sample
 %   1  2016-10-27 14:05  BryanP      Initial Code
 

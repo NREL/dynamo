@@ -233,7 +233,7 @@ verifyProblemStruct(problem);
 % Add additional required functions as needed
 problem.fOptimalDecision = utilFunctForProblem(problem, 'fOptimalDecision', @FindOptDecFromVfun);
 problem.fRandomSample = utilFunctForProblem(problem, 'fRandomSample', ...
-    @(t, n_sample) RandSetSample(problem.random_items, t, n_sample, adp_opt.sample_opt{:}));
+    @(t, n_sample) RandSetSample(problem.random_items, n_sample, t, adp_opt.sample_opt{:}));
 
 problem.fDecCompare = utilFunctForProblem(problem, 'fDecCompare', @isequaln);
 problem.fValCompare = utilFunctForProblem(problem, 'fValCompare', @utilEqualWithTol);
