@@ -18,6 +18,7 @@ function [multi_inv_problem, multiinv_params] = MultiInv_demo(varargin)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  16  2017-04-09 22:42  BryanP      Added fRandomJoint for DP support 
 %  15  2017-04-03 10:28  BryanP      Convert to a function to allow selection of algorithms to try 
 %  14  2016-12-01 22:15  BryanP      Use [] rather than NaN for unused functions 
 %  13  2016-11-10 13:15  BryanP      Changed terminal values to mixed non-zero values 
@@ -81,7 +82,8 @@ multi_inv_problem = struct(...
         'fMapState2Vfun',           [], ... % Map the full state space to an alternate value function space
         ...% Optional performance enhancements to replace general algorithms with custom designs.
         'fOptimalDecision',         [], ... % Find the least cost combination of Decision cost and Value Function for a given pre-decision state
-        'fRandomSample',            [] ... % Replace the default sampling across all random_items RandProc objects
+        'fRandomSample',            [], ... % Replace the default sampling across all random_items RandProc objects
+        'fRandomJoint',             [] ... % Replace the default joint distribution assembly across all random_items RandProc objects
         );
 
 %===Create required ADP object instances

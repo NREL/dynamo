@@ -1,8 +1,8 @@
-function [results] = dpBI(problem, dp_opt, varargin)
+function [results] = dpBI(problem, varargin)
 % dpBI Backward Induction for DP and intialization
 %
-% [results] = dpBI(problem, verbose, true, discount_rate, 0.9)
-% [results] = dpBI(problem, dp_opt, struct('verbose', true))
+% [results] = dpBI(problem, dp_opt_structure)
+% [results] = dpBI(problem, 'verbose', true)
 %
 % Required problem attributes
 %   problem
@@ -14,75 +14,115 @@ function [results] = dpBI(problem, dp_opt, varargin)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- -------------------------------------
+%   3  2017-04-09 23:00    bpalmint   WIP: defaults, setup, pre-decision operations cost, parrallel decisions 
 %   2  2016-10-27          dkrishna   Add core algorithm
 %   1  2016-03-07          dkrishna   Pseudo-code
 
-
-if nargin < 2 || isempty(dp_opt)
-    dp_opt = struct([]);
+%% ====== Handle Inputs =====
+%--- Handle DP options
+%TODO: optional support for varargin list rather than 
+if nargin < 2 || isempty(varargin)
+    varargin = struct([]);
 end
 
-dp_defaults = struct([]);
+dp_defaults = {
+                %general DP options used here
+                'verbose'               50
+                'parallel'              false
+                'fix_rand'              false
+                'fix_rand_is_done'      false
+               };
 
-dp_opt = DefaultFields(dp_opt, dp_defaults);
+dp_opt = DefaultOpts(varargin, dp_defaults);
 
+%--- Handle problem setup
 verifyProblemStruct(problem);
 
 if dp_opt.verbose
     fprintf('Backward Induction DP\n')
 end
 
-cell_values = cell(1, problem.n_periods);
-cell_policy = cell(1, problem.n_periods);
+%initialize output storage
+% TODO: consider directly storing in results structure
+values = cell(1, problem.n_periods + 1);
+pre_state_list = cell(1, problem.n_periods + 1);
+policy = cell(1, problem.n_periods);
 
+
+%% ====== Standardized Setup =====
+% Configure random numbers, including setup consistent stream if desired
+dp_opt = utilRandSetup(dp_opt);
+
+% Initialize parallel pool if required (and suppress parallel pool
+% initializtion if parallel off)
+[cache_par_auto, ps] = utilParSetup(dp_opt);    
+
+% Add additional required functions as needed
+problem.fOptimalDecision = utilFunctForProblem(problem, 'fOptimalDecision', @FindOptDecFromVfun);
+problem.fRandomSample = utilFunctForProblem(problem, 'fRandomJoint', @RandSetNextJoint);
 
 %% ====== DP Backward Induction Algorithm =====
-%% --- terminal states (T+1) ---
+%% --- terminal period (T+1) ---
 t = problem.n_periods + 1;
 % TODO: Use problem specific sample function if one is defined
 if dp_opt.verbose
     fprintf('    T=%d (terminal period): ', t)
 end
 
-state_list = problem.state_set{t}.as_array();
+pre_state_list{t} = problem.state_set{t}.as_array();
 
 % -- Compute contribution for sampled states
 % Note: Memoized operations in terminal period must be handled by user. Typically
 % by calling a memoized ops function in fTerminalValue and storing the Ops
 % table in a handle derived class.
-state_values = problem.fTerminalValue(problem.params, t, state_list);
+values{t} = problem.fTerminalValue(problem.params, t, pre_state_list{t});
 
 if dp_opt.verbose
     fprintf('Done\n')
 end
 
-
+%% --- earlier periods ---
 for t = problem.n_periods:-1:1
     
     if dp_opt.verbose
         fprintf('    T=%d:', t)
     end
     
+    %Cache data needed for parfor
     fn_decision_set = problem.fDecisionSet;
     fn_decision_apply = problem.fDecisionApply;
     params_only = problem.params;
-    states = problem.state_set{t}.as_array();
-    n_states = length(states);
-    % doesn't support the required complex indexing 
-    state_list = cell(length(states), 1);
-    post_state_list = cell(length(states), 1);
-        
-    for s = 1:length(states)
-        %Extract valid decisions
-        assignin('base', 'states', states)
-        decision_set = fn_decision_set(params_only, t, states(s, :)); %#ok<PFBNS>
-        decision_list = decision_set.as_array();
-        post_state_list{s} = fn_decision_apply(params_only, t, states(s, :), decision_list); %#ok<PFBNS>
+
+    %extract (pre-decision) states
+    pre_state_list{t} = problem.state_set{t}.as_array();
+    
+    %Setup decision-related storage
+    n_pre_states = size(pre_state_list{t}, 1);
+    post_state_list = cell(n_pre_states, 1);
+    decision_contrib = cell(n_pre_states, 1);
+    cost_post_dec_ops = cell(n_pre_states, 1);
+
+    % compute before decision operations costs
+    if not(isempty(problem.fOpsBeforeDecision))
+        % Compute unique ops costs, using internal Ops loop
+        before_dec_ops = problem.fOpsBeforeDecision(params_only, t, pre_state_list{t});
+    else
+        before_dec_ops = zeros(n_pre_states, 1);
     end
+
+    parfor s = 1:n_pre_states
+        %Extract possible valid decisions
+        decision_set = fn_decision_set(params_only, t, pre_state_list{t}(s, :)); %#ok<PFBNS>
+        decision_list = decision_set.as_array();
         
-    n_post_states = size(post_state_list,1);
-    uncertainty_list = cell(n_post_states,1);
-    next_pre_list = cell(n_post_states,1);
+        %Store corresponding resulting states
+        post_state_list{s} = fn_decision_apply(params_only, t, pre_state_list{t}(s, :), decision_list); %#ok<PFBNS>
+    end
+
+%>>>>>>>>>>>>>>>> BP EDIT MARKER
+    
+    n_post_states = size(post_state_list, 1);
+    uncertainty_list = cell(n_post_states, 1);
 
     % Note: since we typically sample multiple times per post decision
     % state, each result is stored as a cell array
@@ -144,6 +184,14 @@ end
 % % results.firstPeriodObjectiveFunction = firstPeriodObjectiveFunction;
 % results.opts = dp_opt;
 % results.values = cell_values;
+
+%% ===== Clean-up =====
+%Reset Auto-parallel state
+if not(isempty(cache_par_auto))
+    % when non-empty, we already created ps
+        ps.Pool.AutoCreate = cache_par_auto;
+end
+
 
 end % Main Function
 
