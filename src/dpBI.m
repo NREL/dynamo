@@ -82,27 +82,47 @@ if dp_opt.verbose
 end
 
 %% --- earlier periods ---
+% Explanation: The goal here is to run th core backward induction algorithm
+% of looping over all uncertainty for all decisions for all states. A
+% representative basic algorithm for this would be:  
+%
+%>>>   list all pre_states for t
+%>>>   for each pre_state
+%>>>     compute before_decision operations cost
+%>>>     list all possible decisions
+%>>>     for each decision
+%>>>       compute decision cost
+%>>>       determine the resulting post decision state
+%>>>       compute after decision operations costs
+%>>>       list all uncertainty outcomes and corresponding probabilities
+%>>>       for each uncertainty outcome
+%>>>         compute uncertainty contribution
+%>>>         determine the resulting next pre-decision state
+%>>>         compute after uncertainty operations costs
+%>>>         extract value from next (t+1) pre-decision state
+%>>>         compute post_random_val as sum( uncertainty_contribution, after_random_ops, (1-disc_rate) * next_pre_value) 
+%>>>       compute E[random_value] as sum( post_random_val * probability )
+%>>>       compute post_decision_value as sum(after_dec_ops_cost, expected_random_value)
+%>>>     find optimal_decision as argmin(post_decision_values) 
+%>>>     store optimal_decision in policy array for pre_state and t
+%>>>     compute total_expected_value for pre-decision statate as sum(post_decision_value, decision_cost, before_decision_ops) 
+%>>>     store total_expected_value in value array for pre_state and t
+%
+% However...
+
 for t = problem.n_periods:-1:1
     
     if dp_opt.verbose
         fprintf('    T=%d:', t)
     end
     
-    %Cache data needed for parfor
-    fn_decision_set = problem.fDecisionSet;
-    fn_decision_apply = problem.fDecisionApply;
-    params_only = problem.params;
-
+    %>>>   list all pre_states for t
     %extract (pre-decision) states
     pre_state_list{t} = problem.state_set{t}.as_array();
-    
-    %Setup decision-related storage
     n_pre_states = size(pre_state_list{t}, 1);
-    post_state_list = cell(n_pre_states, 1);
-    decision_contrib = cell(n_pre_states, 1);
-    cost_post_dec_ops = cell(n_pre_states, 1);
 
-    % compute before decision operations costs
+    %>>>   for each pre_state
+    %>>>     compute before_decision operations cost (vectorized)
     if not(isempty(problem.fOpsBeforeDecision))
         % Compute unique ops costs, using internal Ops loop
         before_dec_ops = problem.fOpsBeforeDecision(params_only, t, pre_state_list{t});
@@ -110,13 +130,45 @@ for t = problem.n_periods:-1:1
         before_dec_ops = zeros(n_pre_states, 1);
     end
 
-    parfor s = 1:n_pre_states
-        %Extract possible valid decisions
-        decision_set = fn_decision_set(params_only, t, pre_state_list{t}(s, :)); %#ok<PFBNS>
-        decision_list = decision_set.as_array();
+    %Find all possible decisions for all possible pre-states and produce
+    %set of resulting post_states
+    for s = 1:n_pre_states
+        this_pre_state = pre_state_list{t}(s, :);
         
-        %Store corresponding resulting states
-        post_state_list{s} = fn_decision_apply(params_only, t, pre_state_list{t}(s, :), decision_list); %#ok<PFBNS>
+        %>>>     list all possible decisions
+        decision_set = problem.fDecisionSet(problem.params, t, this_pre_state);
+        decision_list = decision_set.as_array();
+        n_decisions = size(decision_list, 1);
+        
+        %>>>     for each decision
+        %>>>       compute decision cost (vectorized)
+        decision_cost_list = problem.fDecisionCost(problem.params, t, this_pre_state, decision_list);
+        %>>>       determine the resulting post decision state (vectorized)
+        post_state_list = problem.fDecisionApply(problem.params, t, this_pre_state, decision_list);
+        
+        %>>>       compute after decision operations costs (vectorized)
+        if not(isempty(problem.fOpsBeforeDecision))
+            % Compute unique ops costs, using internal Ops loop
+            after_dec_ops = problem.fOpsAfterDecision(params_only, t, this_pre_state, decision_list);
+        else
+            after_dec_ops = zeros(n_decisions, 1);
+        end
+    
+        %actually start decision loop for non-vecorizable pieces
+        for d = 1:n_decisions
+            this_post_state = post_state_list(d, :);
+            
+            %>>>       list all uncertainty outcomes and corresponding probabilities
+            
+            
+            %>>>       for each uncertainty outcome
+            %>>>         compute uncertainty contribution
+            %>>>         determine the resulting next pre-decision state
+            %>>>         compute after uncertainty operations costs
+            %>>>         extract value from next (t+1) pre-decision state
+            %>>>         compute post_random_val as sum( uncertainty_contribution, after_random_ops, (1-disc_rate) * next_pre_value) 
+        end
+
     end
 
 %>>>>>>>>>>>>>>>> BP EDIT MARKER

@@ -12,7 +12,8 @@ classdef RandProcess < AbstractSet
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
-%  12  2017-04-05 23:52  BryanP      Added checkState, varios bugfixes
+%  13  2017-04-10 16:36  BryanP      Make sample depend on state 
+%  12  2017-04-05 23:52  BryanP      Added checkState, various bugfixes
 %  11  2017-04-05 22:52  BryanP      include reset() implementation
 %  10  2017-04-05 22:02  BryanP      Put t as first parameter for dlistnext
 %   9  2017-04-05 15:12  BryanP      Setup for 1-based t indexing and pure value states (no state_n)  
@@ -100,16 +101,16 @@ classdef RandProcess < AbstractSet
         % To get the possible range across all times use t='all'
         state_value_range = range(obj, t)
         
-        %SAMPLE draw state samples for the given time
+        %SAMPLE draw state samples for the given time and state
         %
         % Usage:
         %   state_list = disc_samp_object.sample()
         %       One sample state from current time
         %   state_list = sample(obj, N)
-        %       Return N samples from current time
-        %   state_list = sample(obj, N, t)
+        %       Return N samples from current time and state
+        %   state_list = sample(obj, N, t, state)
         %       Specify time period
-        state_list = sample(obj, N, t)
+        state_list = sample(obj, N, t, state)
 
         %% ===== Additional simulation support
         %STEP simulate forward

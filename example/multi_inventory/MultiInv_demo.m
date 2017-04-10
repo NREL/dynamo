@@ -67,7 +67,7 @@ multi_inv_problem = struct(...
         'fDecisionSet',             @MultiInvDecisionSet, ...    % Returns a set object for a given pre-decision state
         'fDecisionCost',            @MultiInvDecisionCost, ...   % a function handle that returns the decision cost for a given list of decisions
         'fDecisionApply',           @MultiInvDecisionApply, ...  % Returns a post decision state list given a list of pre-decision states and decision
-        'decision_vfun_map',        [], ...    % A map of indicies from decision dimensions to value function dimensions to allow addint decision cost and value function approximations
+        'decision_vfun_map',        [], ...    % A map of indicies from decision dimensions to value function dimensions to allow adding decision cost and value function approximations
         ...% Uncertainty (aka Random) Related
         'random_items',             'assign_later_to_avoid_error', ... % A cell vector of RandProc objects,
         'fRandomCost',              @MultiInvRandomCost, ...  % Returns the cost associated with each random sample for the corresponding post-decision state

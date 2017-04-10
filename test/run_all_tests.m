@@ -2,8 +2,14 @@ function run_all_tests
 % Run all tests for dynamo
 %  Add additional tests, doctest or otherwise, as needed
 
-docs_to_test = {    'rpDiscreteSample'
+docs_to_test = {    
+                    %Sets
                     'setSingleItem'
+                    %Random Processes
+                    'rpDiscreteSample'
+                    %Utilities
+                    'utilCurRandSetState'
+                    %Examples
                     'doctest_MultiInv'
                 };
 

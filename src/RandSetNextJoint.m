@@ -10,28 +10,34 @@ function [state_list, probability_list] = RandSetNextJoint(cell_of_RandProcess, 
 % ---  ---------- -----  ----------- ---------------------------------------
 %   1  2017-04-09 20:05  BryanP      Initial Code 
 
-%cache number of partial distributions to combine
+%% Handle input arguements
+
+% Extract time from first random process if not specified
+if nargin < 2 || isempty(t)
+    t = cell_of_RandProcess{1}.t;
+end
+    
+% Divide up current random process states among partials
+if nargin < 3 
+    cur_rand_state = [];
+end
+%get cur_rand_state as a cell vector
+cur_rand_state = utilCurRandSetState(cur_rand_state, cell_of_RandProcess);
+
+%% Extract partial state and probability lists
 n_rp = length(cell_of_RandProcess);
 partial_state_list = cell(1,n_rp);
 partial_probability_list = cell(1,n_rp);
 
-%% Divide up current random process states among partials
-%extract sizes of random processes to know how to divide cur_rand_state
-dim_list = zeros(1, n_rp);
-for idx = 1:n_rp
-    dim_list(idx) = cell_of_RandProcess{idx}.N_dim;
-end
-
-%actually divide up cur_rand_state
-cur_rand_state = mat2cell(cur_rand_state, 1, dim_list);
-
-%% Extract partial state and probability lists
 for idx = 1:n_rp
     [partial_state_list{idx}, partial_probability_list{idx}] = ...
         cell_of_RandProcess{idx}.dlistnext(t, cur_rand_state{idx});
 end
 
 %% Create joint lists by adding one partial at a time to the current joint
+%TODO: compare to using allcomb(). Guessing this might be faster b/c of
+%new-ish repelem
+%
 % Initialize using the first partial as the joint
 state_list = partial_state_list{1};
 probability_list = partial_probability_list{1};

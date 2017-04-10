@@ -366,15 +366,17 @@ for t = problem.n_periods:-1:1
             DisplayProgress(adp_verbose,post_idx)
         end
         
+        this_post_state = post_state_list(post_idx,:);
+        
         %>>>     sample uncertainty and store change
         % Sample Random outcomes to get to next pre-states
         uncertainty_list{post_idx} = fn_random_sample(t, rand_per_post_state); %#ok<PFBNS>, because OK to broadcast reduced fn_* variable
-        next_pre_list{post_idx} = fn_random_apply(params_only, t, post_state_list(post_idx,:), uncertainty_list{post_idx});  %#ok<PFBNS>
+        next_pre_list{post_idx} = fn_random_apply(params_only, t, this_post_state, uncertainty_list{post_idx});  %#ok<PFBNS>
         decision_list_for_pre{post_idx} = repmat(decision_list(post_idx, :), size(uncertainty_list{post_idx}, 1), 1);
 
         %>>>     compute uncertainty_contribution
         if not(isempty(fn_random_cost))
-            uncertainty_contrib{post_idx} = fn_random_cost(params_only, t, post_state_list(post_idx,:), uncertainty_list{post_idx});
+            uncertainty_contrib{post_idx} = fn_random_cost(params_only, t, this_post_state, uncertainty_list{post_idx});
         else
             uncertainty_contrib{post_idx} = 0;
         end

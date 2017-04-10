@@ -190,11 +190,11 @@ classdef rpDiscreteSample < RandProcess
             % 
             % Usage:
             %   state_list = disc_samp_object.sample()
-            %       One sample state from current time
+            %       One sample state from current time & state
             %   state_list = sample(obj, N)
-            %       Return N samples from current time
-            %   state_list = sample(obj, N, t)
-            %       Specify time period
+            %       Return N samples from current time & state
+            %   state_list = sample(obj, N, t, state)
+            %       Specify time period & state (though state doesn't matter here) 
             if nargin < 2
                 N = 1;
             end
