@@ -99,6 +99,7 @@ classdef rpDiscreteSample < RandProcess
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  13  2017-04-25 07:42  BryanP      Allow empty state since we are time independant
 %  12  2017-04-05 23:42  BryanP      Bugfixes & add checkState()
 %  11  2017-04-05 22:02  BryanP      Overhaul complete:
 %                                       -- t now 1 indexed
@@ -251,15 +252,14 @@ classdef rpDiscreteSample < RandProcess
                 [next_state_list, probability_list] = obj.dlistnext(obj.t, obj.cur_state);
                 return
             end
-
-            if nargin == 2 || isempty(cur_state)
-                error('RandProcess:MissingState', 'Must specify state when specifying time')
-            end
-
+            
             % adapt time to give valid index
             t = min(floor(t), obj.Tmax);
             
-            obj.checkState(t, cur_state);
+            % Allow empty state since we are time independant
+            if not(isempty(cur_state))
+                obj.checkState(t, cur_state);
+            end
 
             %if we get here, we know the state is valid
             %

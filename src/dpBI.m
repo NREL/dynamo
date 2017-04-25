@@ -14,6 +14,7 @@ function [results] = dpBI(problem, varargin)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- -------------------------------------
+%   4  2017-04-25 07:00    bpalmint   WIP: mostly through uncertainty management 
 %   3  2017-04-09 23:00    bpalmint   WIP: defaults, setup, pre-decision operations cost, parrallel decisions 
 %   2  2016-10-27          dkrishna   Add core algorithm
 %   1  2016-03-07          dkrishna   Pseudo-code
@@ -171,11 +172,15 @@ for t = problem.n_periods:-1:1
             %>>>       for each uncertainty outcome
             %            NOTE: fully vectorized so no loop
             %>>>         compute uncertainty contribution
-            uncertainty_cost = problem.fRandomCost(problem.params, t, this_post_state, random_outcome_list);
+            uncertainty_contrib = problem.fRandomCost(problem.params, t, this_post_state, random_outcome_list);
             %>>>         determine the resulting next pre-decision state
             next_pre_state_list = problem.fRandomApply(problem.params, t, this_post_state, random_outcome_list);
             %>>>         compute after uncertainty operations costs
-            after_dec_ops = problem.fOpsAfterRandom(params_only, t, next_pre_state_list, this_decision, random_outcome_list);
+            if not(isempty(problem.fOpsAfterRandom))
+                after_rand_ops = problem.fOpsAfterRandom(problem.params, t, next_pre_state_list, this_decision, random_outcome_list);
+            else
+                after_rand_ops = 0;
+            end
             
 %>>>>>>>>>>>>>>>> BP EDIT MARKER  
             %>>>         extract value from next (t+1) pre-decision state
