@@ -7,9 +7,9 @@ function cur_rand_state_cell = utilRandStatefromState(full_state, random_state_m
 % >> full_state = [1 20 3 44];
 % >> utilRandStatefromState(full_state, {[4] [2,1] []})
 % 
-% ans =
+% ans = 
 % 
-%     [44]    [1×2 double]    [1×0 double]
+%     [44]    [1x2 double]    [1x0 double]
 % 
 % >> ans{2}
 % 
@@ -19,9 +19,9 @@ function cur_rand_state_cell = utilRandStatefromState(full_state, random_state_m
 % 
 % >> utilRandStatefromState(full_state, {[] [] []})
 % 
-% ans =
+% ans = 
 % 
-%     [1×0 double]    [1×0 double]    [1×0 double]
+%     [1x0 double]    [1x0 double]    [1x0 double]
 %
 %
 % See also: RandSetSample, RandSetNextJoint, RandProcess

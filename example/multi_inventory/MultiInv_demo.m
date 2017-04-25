@@ -1,4 +1,4 @@
-function [multi_inv_problem, multiinv_params] = MultiInv_demo(varargin)
+function [multi_inv_problem, results] = MultiInv_demo(varargin)
 % MULTIINV_DEMO Demo script showing simple use of adp clases of algorithms
 %
 % multi_inv_problem = MultiInv_demo()
@@ -36,19 +36,68 @@ function [multi_inv_problem, multiinv_params] = MultiInv_demo(varargin)
 %   1  2016-04-14 11:23  BryanP      Adapted from MultiInvDP_scratchpad v5
 
 %% Setup problem specific values
-multiinv_n_periods = 3;
-multiinv_params = { %REQUIRED: Warehouse and product space, size, & demand configuration
-                    'total_space'       20      % Max space in warehouse
-                    'unit_space'        [2 3 1] % Space per item
-                    'p_demand'          [1 2 3] % Probability vector (pmf) of sales per quantity per tiem. If scalar per item: treated as poisson demand, cell with columns otherwise
-                   % OPTIONAL: Pricing assumptions (can use defaults).
-                   % Note: costs are negative
-                    'order_cost'        -4      % Flat cost to place any order (in additon to per unit costs)
-                    'term_unit_val'     [1 2 3] % Value of product at end of forecast horizon
-                    'unit_cost'         -2      % Ordering cost per unit. If scalar, assumes same cost for all products
-                    'hold_cost'         -1      % Cost to keep in warehouse per unit per time. If scalar, assumes same cost for all products
-                    'sales_price'       8       % Sales price per unit. If scalar, assumes same cost for all products
-                 };
+% Create "small" test case if requested. Matches the old
+% MultiInvDP_scratchpad "medium" case which runs in 17.4sec on MacBook Pro
+% mid-2014
+%
+% Solution (top 10 entries)
+% Optimal Policy:
+%  state      t= 1       2       3       4       5
+% [0,0,0]     [2,3,5]	[2,3,5]	[2,3,5]	[2,3,5]	[1,2,3]
+% [0,1,0]     [2,2,5]	[2,2,5]	[2,2,5]	[2,2,5]	[1,1,3]
+% [0,2,0]     [2,1,5]	[2,1,5]	[2,1,5]	[2,1,5]	[1,0,3]
+% [0,3,0]     [2,0,5]	[2,0,5]	[2,0,5]	[2,0,5]	[1,0,3]
+% [0,4,0]     [2,0,4]	[2,0,4]	[2,0,4]	[2,0,4]	[1,0,3]
+% [0,5,0]     [1,0,3]	[1,0,3]	[1,0,3]	[1,0,3]	[1,0,3]
+% [0,6,0]     [0,0,2]	[0,0,2]	[0,0,2]	[0,0,2]	[0,0,2]
+% [1,0,0]     [1,3,5]	[1,3,5]	[1,3,5]	[1,3,5]	[0,2,3]
+% [1,1,0]     [1,2,5]	[1,2,5]	[1,2,5]	[1,2,5]	[0,1,3]
+% [1,2,0]     [1,1,5]	[1,1,5]	[1,1,5]	[1,1,5]	[0,0,3]
+%
+% Optimal Values:
+%  state    t= 1  	  2       3       4 	  5      6
+% [0,0,0]     73.1	60.4	46.4	30.8	13.3	0.0
+% [0,1,0]     75.1	62.4	48.4	32.8	15.3	0.0
+% [0,2,0]     77.1	64.4	50.4	34.8	17.3	0.0
+% [0,3,0]     79.1	66.4	52.4	36.8	18.9	0.0
+% [0,4,0]     80.7	68.1	54.0	38.2	19.1	0.0
+% [0,5,0]     79.8	67.1	53.0	36.8	18.5	0.0
+% [0,6,0]     73.7	61.0	46.8	30.5	14.0	0.0
+% [1,0,0]     75.1	62.4	48.4	32.8	15.3	0.0
+% [1,1,0]     77.1	64.4	50.4	34.8	17.3	0.0
+% [1,2,0]     79.1	66.4	52.4	36.8	19.3	0.0
+
+
+if any(strcmpi('small', varargin))
+    multiinv_n_periods = 4;
+    multiinv_params = { %REQUIRED: Warehouse and product space, size, & demand configuration
+                        'total_space'       20      % Max space in warehouse
+                        'unit_space'        [2 3] % Space per item
+                        'p_demand'          [1 2] % Probability vector (pmf) of sales per quantity per tiem. If scalar per item: treated as poisson demand, cell with columns otherwise
+                       % OPTIONAL: Pricing assumptions (can use defaults).
+                       % Note: costs are negative
+                        'order_cost'        -4      % Flat cost to place any order (in additon to per unit costs)
+                        'term_unit_val'     0       % Value of product at end of forecast horizon
+                        'unit_cost'         -2      % Ordering cost per unit. If scalar, assumes same cost for all products
+                        'hold_cost'         -1      % Cost to keep in warehouse per unit per time. If scalar, assumes same cost for all products
+                        'sales_price'       8       % Sales price per unit. If scalar, assumes same cost for all products
+                     };    
+else %Otherwise assume medium sized problem
+    multiinv_n_periods = 3;
+
+    multiinv_params = { %REQUIRED: Warehouse and product space, size, & demand configuration
+                        'total_space'       50      % Max space in warehouse
+                        'unit_space'        [1 3 5] % Space per item
+                        'p_demand'          [30 10 5] % Probability vector (pmf) of sales per quantity per tiem. If scalar per item: treated as poisson demand, cell with columns otherwise
+                       % OPTIONAL: Pricing assumptions (can use defaults).
+                       % Note: costs are negative
+                        'order_cost'        -4      % Flat cost to place any order (in additon to per unit costs)
+                        'term_unit_val'     [1 2 3] % Value of product at end of forecast horizon
+                        'unit_cost'         -2      % Ordering cost per unit. If scalar, assumes same cost for all products
+                        'hold_cost'         -1      % Cost to keep in warehouse per unit per time. If scalar, assumes same cost for all products
+                        'sales_price'       8       % Sales price per unit. If scalar, assumes same cost for all products
+                     };    
+end
 
 % Build up additional derived fields. Also takes poisson p_demand and
 % converts to a pdf in a cell array
@@ -58,7 +107,7 @@ multiinv_params = MultiInvParamsSetup(multiinv_params);
 multi_inv_problem = struct(...
         ...%Problem Setup
         'params',                   multiinv_params, ...   % Problem specific placeholder to be passed to all functions TODO add a struct before this
-        'discount_rate',            0.02, ...
+        'discount_rate',            0.1, ...
         'n_periods',                multiinv_n_periods, ...
         ...% State Related
         'state_set',                'assign_later_to_avoid_error', ...    % A cell vector of set objects capturing the pre-decision states. One per timestep TODO: support single item
@@ -125,24 +174,32 @@ end
 %% Run DP (Backward Induction) algorithm
 if any(strcmpi('dp', varargin)) || any(strcmpi('dpBI', varargin))
     multi_inv_problem_dp = multi_inv_problem;
-    %TODO: run DP
-    %TODO: display summary
 
-    dp_results = dpBI(multi_inv_problem_dp)
+    tic
+    results = dpBI(multi_inv_problem_dp);
+    toc
+    %TODO: display summary
+    return
 end
 
 %% Run ADP Sample Backward Induction algorithm
 if any(strcmpi('sbi', varargin)) || any(strcmpi('adpSBI', varargin))
     multi_inv_problem_sbi = multi_inv_problem;
-    sbi_results = adpSBI(multi_inv_problem_sbi)
+    tic
+    results = adpSBI(multi_inv_problem_sbi);
+    toc
     %TODO: display summary
+    return
 end
 
 %% Run ADP Double Pass (Temporal Difference, Lambda=1) algorithm
 if any(strcmpi('td1', varargin)) || any(strcmpi('adpTD1', varargin))
     multi_inv_problem_td1 = multi_inv_problem;
-    td1_results = adpTD1(multi_inv_problem_td1)
+    tic
+    results = adpTD1(multi_inv_problem_td1);
+    toc
     %TODO: display summary
+    return
 end
 
 

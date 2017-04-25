@@ -23,7 +23,7 @@
 % 
 % test_pre_state =
 % 
-%      8     5     2
+%      9     3     1
 % 
 % 
 % 
@@ -48,7 +48,7 @@
 % 
 % ans =
 % 
-%    114     3
+%    160     3
 % 
 % >> dec_subset = dec_list(1:10,:)
 % 
@@ -84,27 +84,24 @@
 % 
 % post_state_list =
 % 
-%      8     5     2
-%      8     5     3
-%      8     5     4
-%      8     5     5
-%      8     5     6
-%      8     5     7
-%      8     5     8
-%      8     5     9
-%      8     5    10
-%      8     5    11
+%      9     3     1
+%      9     3     2
+%      9     3     3
+%      9     3     4
+%      9     3     5
+%      9     3     6
+%      9     3     7
+%      9     3     8
+%      9     3     9
+%      9     3    10
 % 
 % 
 % 
 % % ===== Test Uncertainty related functions ======
-% >> sample_list = RandSetSample(multi_inv_problem.random_items, t, 10)
+% >> sample_list = RandSetSample(multi_inv_problem.random_items, 10, t)
 % 
 % sample_list =
 % 
-%      2     2     6
-%      1     3     4
-%      0     1     4
 %      0     2     4
 %      1     4     2
 %      3     3     4
@@ -112,36 +109,39 @@
 %      0     2     4
 %      3     0     0
 %      3     3     2
+%      1     4     0
+%      2     3     1
+%      0     3     5
 % 
 % >> rand_contrib = multi_inv_problem.fRandomCost(multi_inv_problem.params, t, post_state_list, sample_list)
 % 
 % rand_contrib =
 % 
+%     24
 %     48
-%     56
-%     40
-%     48
-%     56
-%     80
 %     72
+%     56
 %     48
 %     24
+%     64
+%     32
+%     48
 %     64
 % 
 % >> next_pre_list = multi_inv_problem.fRandomApply(multi_inv_problem.params, t, post_state_list, sample_list)
 % 
 % next_pre_list =
 % 
-%      6     3     0
-%      7     2     0
-%      8     4     0
-%      8     3     1
-%      7     1     4
-%      5     2     3
-%      5     0     7
-%      8     3     5
-%      5     5    10
-%      5     2     9
+%      9     1     0
+%      8     0     0
+%      6     0     0
+%      6     0     3
+%      9     1     1
+%      6     3     6
+%      6     0     5
+%      8     0     8
+%      7     0     8
+%      9     0     5
 %
 %
 % % ===== Test Ops cost Function in each of the 3 possible configurations =====
@@ -179,6 +179,8 @@
 % 
 % ans =
 % 
+%    -13
+%    -14
 %    -15
 %    -16
 %    -17
@@ -187,8 +189,6 @@
 %    -20
 %    -21
 %    -22
-%    -23
-%    -24
 % 
 % >> MultiInvOps(multi_inv_problem.params, t, post_state_list, dec_subset, 'junk')
 % Warning: Unused Operations after random. Only after decision operations used in Multi-Inventory 
@@ -216,39 +216,22 @@
 % 
 % full_list =
 % 
-%      8     5     2
+%     9     3     1
 % 
 % >> [~, full_list] = multi_inv_problem.fOpsAfterDecision(multi_inv_problem.params, t, post_state_list, dec_subset, [], 'old_full')
 % 
 % full_list =
 % 
-%      8     5     2
-%      8     5     3
-%      8     5     4
-%      8     5     5
-%      8     5     6
-%      8     5     7
-%      8     5     8
-%      8     5     9
-%      8     5    10
-%      8     5    11
-% 
-% >> [~, full_list] = MultiInvOps(multi_inv_problem.params, t, post_state_list, dec_subset, 'junk', 'old_full')
-% Warning: Unused Operations after random. Only after decision operations used in Multi-Inventory 
-% *** 
-% 
-% full_list =
-% 
-%      8     5     2
-%      8     5     3
-%      8     5     4
-%      8     5     5
-%      8     5     6
-%      8     5     7
-%      8     5     8
-%      8     5     9
-%      8     5    10
-%      8     5    11
+%      9     3     1
+%      9     3     2
+%      9     3     3
+%      9     3     4
+%      9     3     5
+%      9     3     6
+%      9     3     7
+%      9     3     8
+%      9     3     9
+%      9     3    10
 % 
 % 
 % 
@@ -257,9 +240,6 @@
 % 
 % final_states =
 % 
-%      0     4     3
-%      0     1     2
-%      8     2     9
 %      6     2    19
 %      3     3     6
 %      9     4    11
@@ -267,6 +247,9 @@
 %      4     1    15
 %      3     4     5
 %      7     3    10
+%      7     0    13
+%      1     0    17
+%      4     2    19
 % 
 % >> cache_term_val = multi_inv_problem.params.term_unit_val;
 % >> multi_inv_problem.params.term_unit_val = 1:multi_inv_problem.params.n_products;
@@ -274,9 +257,6 @@
 % 
 % ans =
 % 
-%     17
-%      8
-%     39
 %     67
 %     27
 %     50
@@ -284,6 +264,9 @@
 %     51
 %     26
 %     43
+%     46
+%     52
+%     65
 % 
 % >> multi_inv_problem.params.term_unit_val = cache_term_val;
 %
@@ -321,7 +304,7 @@ post_state_list = multi_inv_problem.fDecisionApply(multi_inv_problem.params, t, 
 
 
 % ===== Test Uncertainty related functions ======
-sample_list = RandSetSample(multi_inv_problem.random_items, t, 10)
+sample_list = RandSetSample(multi_inv_problem.random_items, 10, t)
 rand_contrib = multi_inv_problem.fRandomCost(multi_inv_problem.params, t, post_state_list, sample_list)
 next_pre_list = multi_inv_problem.fRandomApply(multi_inv_problem.params, t, post_state_list, sample_list)
 

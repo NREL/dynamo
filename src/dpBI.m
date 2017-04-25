@@ -47,7 +47,7 @@ end
 % TODO: consider directly storing in results structure
 values = cell(1, problem.n_periods + 1);
 pre_state_list = cell(1, problem.n_periods + 1);
-policy = cell(1, problem.n_periods);
+policy = cell(1, problem.n_periods);  %Contains optimal decisions for each state
 
 
 %% ====== Standardized Setup =====
@@ -103,10 +103,10 @@ end
 %>>>         extract value from next (t+1) pre-decision state
 %>>>         compute post_random_val as sum( uncertainty_contribution, after_random_ops, (1-disc_rate) * next_pre_value) 
 %>>>       compute E[random_value] as sum( post_random_val * probability )
-%>>>       compute post_decision_value as sum(after_dec_ops_cost, expected_random_value)
-%>>>     find optimal_decision as argmin(post_decision_values) 
+%>>>       compute total_decision_value as sum(after_dec_ops_cost, expected_random_value)
+%>>>     find optimal_decision as argmin(total_decision_values) 
 %>>>     store optimal_decision in policy array for pre_state and t
-%>>>     compute total_expected_value for pre-decision statate as sum(post_decision_value, decision_cost, before_decision_ops) 
+%>>>     compute total_expected_value for pre-decision statate as sum(total_decision_value, before_decision_ops) 
 %>>>     store total_expected_value in value array for pre_state and t
 %
 % However...
@@ -131,16 +131,25 @@ for t = problem.n_periods:-1:1
         before_dec_ops = zeros(n_pre_states, 1);
     end
 
+    %Initialize optimal policy (decision) storage
+    first_decision_set = problem.fDecisionSet(problem.params, t, pre_state_list{t}(1, :));
+    n_decision_dims = first_decision_set.N_dim;
+    policy{t} = NaN(n_pre_states, n_decision_dims);
+    values{t} = NaN(n_pre_states, 1);
+        
     %Find all possible decisions for all possible pre-states and produce
     %set of resulting post_states
     for s = 1:n_pre_states
+        
+        DisplayProgress(dp_opt.verbose, s)
+        
         this_pre_state = pre_state_list{t}(s, :);
         
         %>>>     list all possible decisions
         decision_set = problem.fDecisionSet(problem.params, t, this_pre_state);
         decision_list = decision_set.as_array();
         n_decisions = size(decision_list, 1);
-        
+                
         %>>>     for each decision
         %>>>       compute decision cost (vectorized)
         decision_cost_list = problem.fDecisionCost(problem.params, t, this_pre_state, decision_list);
@@ -152,11 +161,12 @@ for t = problem.n_periods:-1:1
             % Compute unique ops costs, using internal Ops loop
             after_dec_ops = problem.fOpsAfterDecision(params_only, t, this_pre_state, decision_list);
         else
-            after_dec_ops = zeros(n_decisions, 1);
+            after_dec_ops = 0;
         end
     
         %actually start decision loop for non-vecorizable pieces
-        for d = 1:n_decisions
+        expected_random_val = NaN(n_decisions, 1);
+        parfor d = 1:n_decisions
             this_decision = decision_list(d, :);
             this_post_state = post_state_list(d, :);
             
@@ -182,22 +192,52 @@ for t = problem.n_periods:-1:1
                 after_rand_ops = 0;
             end
             
-%>>>>>>>>>>>>>>>> BP EDIT MARKER  
             %>>>         extract value from next (t+1) pre-decision state
+            next_pre_value = zeros(size(uncertainty_contrib));
+            [valid_state_mask, next_state_map] = ismember(next_pre_state_list, pre_state_list{t+1}, 'rows');
+            if not(all(valid_state_mask))
+                warning('dbBI:state_not_found', 'Some post uncertainty states not found for post-state: [%s] at t=%d. Setting values to -Inf', this_post_state, t)
+                next_pre_value(not(valid_state_mask)) = -Inf;
+            end
+            next_pre_value(valid_state_mask) = values{t+1}(next_state_map);
+            
             %>>>         compute post_random_val as sum( uncertainty_contribution, after_random_ops, (1-disc_rate) * next_pre_value) 
+            post_random_value = uncertainty_contrib + after_rand_ops + (1-problem.discount_rate) * next_pre_value;
+
+            %>>>       compute E[random_value] as sum( post_random_val * probability )
+            expected_random_val(d) = sum(post_random_value .* probability_list);
+            
         end
+        %>>>       compute decision_value as sum(after_dec_ops_cost, expected_random_value, decision_cost_list)
+        total_decision_value = after_dec_ops + expected_random_val + decision_cost_list;
+        
+        %>>>     find optimal_decision as argmin(decision_values)
+        optimal_total_decision_value = max(total_decision_value);
+        optimal_decision_idx = find(total_decision_value == optimal_total_decision_value, 1);
+        optimal_decision = decision_list(optimal_decision_idx, :);
+
+        %>>>     store optimal_decision in policy array for pre_state and t
+        policy{t}(s,:) = optimal_decision;
+        
+        %>>>     compute total_expected_value for pre-decision statate as sum(total_decision_value, before_decision_ops) 
+        total_expected_value = optimal_total_decision_value + before_dec_ops(s);
+        %>>>     store total_expected_value in value array for pre_state and t
+        values{t}(s) = total_expected_value;
 
     end
 
+    if dp_opt.verbose
+        fprintf('Done. %d states\n', n_pre_states)
+    end
 
 end
 
-
-% results.policy = cell_policy;
-% % results.firstPeriodDecision = firstPeriodDecision;
-% % results.firstPeriodObjectiveFunction = firstPeriodObjectiveFunction;
-% results.opts = dp_opt;
-% results.values = cell_values;
+results.dpbi_policy = policy;
+% results.firstPeriodDecision = firstPeriodDecision;
+% results.firstPeriodObjectiveFunction = firstPeriodObjectiveFunction;
+results.dp_opts = dp_opt;
+results.dpbi_values = values;
+results.pre_state_list = pre_state_list;
 
 %% ===== Clean-up =====
 %Reset Auto-parallel state
@@ -208,64 +248,3 @@ end
 
 
 end % Main Function
-
-
-
-% 
-%     values = -Inf * ones(n_states, 1);
-%     policy = NaN * ones(n_states, 1); %action (orders) = f(s,t), no action in final state
-%     policy = num2cell(policy);
-% 
-%     if t == problem.n_periods
-% 
-%         [v] = problem.fTerminalValue(problem.params, t, states);
-%         values(1:n_states) = v;
-%         
-%     else
-%         for s_idx = size(states, 1)
-%             
-%             s = states(s_idx, :);
-% 
-%             decision_set = problem.fDecisionSet(problem.params, s, t);
-%             [decisions] = decision_set.as_array();
-% 
-%             if ~ isempty(decisions)
-% 
-%                 n_decisions = length(decisions);
-% 
-%                 contribution = zeros(n_decisions, 1);
-%                 for d = decisions(:)'
-%                     % post_decision_state = problem.fDecisionApply(problem.params, s, d, period);
-%                     value_from_decision = problem.fDecisionCost(problem.params, s, d, t);
-%                     
-%                     n_random_process = length([problem.random_items{:}]);
-%                     for rp = [problem.random_items{:}]
-%                         
-%                         [value_list, state_n_list, prob] = rp.dlistnext(s, t);
-% 
-%                         random_process_value = prob*problem.fRandomProcessValue(value_list);
-%                         value_from_decision = value_from_decision + random_process_value;
-%                     end
-% 
-%                     % TODO combine to a a realizations and probablity array
-%                     % TODO different value function for every time period
-%                     % Integer range from real
-%                     % real range from integer
-%                     contribution(d+1) = value_from_decision;
-%                     % [uncertainty_value, problem.params] = problem.fUncertaintyApply(s, d, period, cell_values{period+1}, problem.params);
-%                 end
-% 
-%                 % TODO See if FindOptimalDecision is available
-% 
-%                 [best_contribution, best_contribution_index] = max(contribution);
-% 
-%                 if best_contribution > values(s)
-%                     values(s) = best_contribution;
-%                     policy{s} = best_contribution_index-1;
-%                 end
-%             end
-%         end
-%     end
-% 
-%     cell_values{t} = values;
-%     cell_policy{t} = policy;
