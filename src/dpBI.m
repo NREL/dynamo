@@ -156,77 +156,34 @@ for t = problem.n_periods:-1:1
     
         %actually start decision loop for non-vecorizable pieces
         for d = 1:n_decisions
+            this_decision = decision_list(d, :);
             this_post_state = post_state_list(d, :);
             
             %>>>       list all uncertainty outcomes and corresponding probabilities
-            
+            % extract random portion of the state:
+            if not(isempty(problem.random_state_map))
+                cur_rand_state = utilRandStatefromState(this_post_state, problem.random_state_map);
+            else
+                cur_rand_state = {};
+            end
+            [random_outcome_list, probability_list] = RandSetNextJoint(problem.random_items, t, cur_rand_state);
             
             %>>>       for each uncertainty outcome
+            %            NOTE: fully vectorized so no loop
             %>>>         compute uncertainty contribution
+            uncertainty_cost = problem.fRandomCost(problem.params, t, this_post_state, random_outcome_list);
             %>>>         determine the resulting next pre-decision state
+            next_pre_state_list = problem.fRandomApply(problem.params, t, this_post_state, random_outcome_list);
             %>>>         compute after uncertainty operations costs
+            after_dec_ops = problem.fOpsAfterRandom(params_only, t, next_pre_state_list, this_decision, random_outcome_list);
+            
+%>>>>>>>>>>>>>>>> BP EDIT MARKER  
             %>>>         extract value from next (t+1) pre-decision state
             %>>>         compute post_random_val as sum( uncertainty_contribution, after_random_ops, (1-disc_rate) * next_pre_value) 
         end
 
     end
 
-%>>>>>>>>>>>>>>>> BP EDIT MARKER
-    
-    n_post_states = size(post_state_list, 1);
-    uncertainty_list = cell(n_post_states, 1);
-
-    % Note: since we typically sample multiple times per post decision
-    % state, each result is stored as a cell array
-    % Cache only required structure pieces for use in the following set of
-    % parfor loops
-    % Note: some values, e.g. params already cached
-    fn_random_apply = problem.fRandomApply;
-    fn_random_cost = problem.fRandomCost;
-    fn_random_sample = problem.fRandomSample;
-    fn_optimal_decision = problem.fOptimalDecision;
-    %Note: Decision costs not included b/c assume internal loop for computing operations cost (with memoization?) 
-    n_periods = problem.n_periods;
-    rand_per_post_state = 10;
-    
-    for post_idx = 1:n_post_states
-        if dp_opt.verbose
-            DisplayProgress(dp_opt.verbose, post_idx)
-        end
-        
-        %>>>     sample uncertainty and store change
-        % Sample Random outcomes to get to next pre-states
-                
-        rand_list = problem.random_items{t};
-        if length(rand_list) > 1
-            warning('dpBI:NotImplemented', 'Currently Random Items can only be lenght 1 at each time') 
-        end
-        
-        rand_list.dlistnext(post_state_list(post_idx,:), t)
-        
-        display('Stop')
-        
-        next_pre_list{post_idx} = fn_random_apply(params_only, t, post_state_list(post_idx,:), rand_list{rand_idx}.Vlist);
-        
-    end
-    
-%     for s = 1:length(state_list)
-%         %Extract valid decisions
-%         decision_set = fn_decision_set(params_only, t, states(s, :)); %#ok<PFBNS>
-%         %And sample these choices
-% 
-%         
-%         ds = decision_set.as_array();
-%         decision_set
-%         decision_list{s} = ds{s};
-%         %Build a piece of the post_decision sample
-%         state_list{s} = fn_decision_apply(params_only, t, state_list(s, :), decision_list{s}); %#ok<PFBNS>
-%     end
-%     
-%     % Finally reconstruct the possibly parallel pieces into a full list
-%     state_list = cell2mat(state_list);
-%     decision_list = cell2mat(decision_list);
-    
 
 end
 

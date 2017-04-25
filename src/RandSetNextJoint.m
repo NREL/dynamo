@@ -1,7 +1,7 @@
-function [state_list, probability_list] = RandSetNextJoint(cell_of_RandProcess, t, cur_rand_state)
+function [random_outcome_list, probability_list] = RandSetNextJoint(cell_of_RandProcess, t, cur_rand_state)
 % RANDSETJOINT Creates the joint probability from a group of RandProcess objects 
 % 
-% [state_list, probability_list] = dlistnext (obj, t, state)
+% [random_outcome_list, probability_list] = RandSetNextJoint(cell_of_RandProcess, t, cur_rand_state)
 %
 % See also: RandSetSample, RandProcess
 
@@ -22,7 +22,7 @@ if nargin < 3
     cur_rand_state = [];
 end
 %get cur_rand_state as a cell vector
-cur_rand_state = utilCurRandSetState(cur_rand_state, cell_of_RandProcess);
+cur_rand_state = utilRandSetCurState(cell_of_RandProcess, cur_rand_state);
 
 %% Extract partial state and probability lists
 n_rp = length(cell_of_RandProcess);
@@ -39,18 +39,18 @@ end
 %new-ish repelem
 %
 % Initialize using the first partial as the joint
-state_list = partial_state_list{1};
+random_outcome_list = partial_state_list{1};
 probability_list = partial_probability_list{1};
 % Add remaining joints
 for idx = 2:n_rp
     %id sizes for duplicating
-    joint_len = size(state_list, 1);
+    joint_len = size(random_outcome_list, 1);
     partial_len = size(partial_state_list{idx}, 1);
 
     %build state list by duplicating the joint and partial states
-    extended_joint_state = repelem(state_list,partial_len, 1);
+    extended_joint_state = repelem(random_outcome_list,partial_len, 1);
     extended_partial_state = repmat(partial_state_list{idx}, joint_len, 1);
-    state_list = [ extended_joint_state,  extended_partial_state ];
+    random_outcome_list = [ extended_joint_state,  extended_partial_state ];
 
     %build probability list
     % note: save multiplication to end to reduce rounding errors

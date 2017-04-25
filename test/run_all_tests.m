@@ -9,6 +9,7 @@ docs_to_test = {
                     'rpDiscreteSample'
                     %Utilities
                     'utilRandSetCurState'
+                    'utilRandStatefromState'
                     %Examples
                     'doctest_MultiInv'
                 };
@@ -19,3 +20,4 @@ for d_idx = 1:length(docs_to_test)
     fprintf('Testing %s\n', d_name)
     doctest(d_name)
 end
+

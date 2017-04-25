@@ -72,6 +72,7 @@ multi_inv_problem = struct(...
         'random_items',             'assign_later_to_avoid_error', ... % A cell vector of RandProc objects,
         'fRandomCost',              @MultiInvRandomCost, ...  % Returns the cost associated with each random sample for the corresponding post-decision state
         'fRandomApply',             @MultiInvRandomApply, ... % Returns list of next pre-decision states given a post-decision state and list of random samples to apply
+        'random_state_map',         'assign_later_based_on_random_items', ...    % A cell array map of indicies to extract state-tracked random process information (e.g. lattice). cell entry order matches random_items
         ...%Operations Cost Related: 0-3 may be defined as needed. If not defined, zero cost is assumed
         'fOpsBeforeDecision',       [], ... %Simulate operations and return operations costs based on pre-decision state (Optional) 
         'fOpsAfterDecision',        @MultiInvOps, ... % Simulate operations and return operations costs based on post-decision state and decision (Optional)
@@ -111,7 +112,9 @@ for p_idx = 1:multi_inv_problem.params.n_products
     prob = multi_inv_problem.params.p_demand(p_idx);    %Already a cell array, just
     multi_inv_problem.random_items{p_idx} = rpDiscreteSample(vals, prob);
 end
-
+%Since DiscreteSample is independant of state, configure the
+%random_state_map with all empties
+multi_inv_problem.random_state_map = cell(size(multi_inv_problem.random_items));
 
 %% Now that setup is complete, let's run the specified examples
 if nargin < 1
