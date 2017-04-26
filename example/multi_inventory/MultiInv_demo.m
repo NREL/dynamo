@@ -18,6 +18,7 @@ function [multi_inv_problem, results] = MultiInv_demo(varargin)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  18  2017-04-26 17:32  BryanP      Added many pre-sized examples  
 %  17  2017-04-26 05:24  BryanP      BUGFIX: use setCombinWithLimits (finally available)  
 %  16  2017-04-09 22:42  BryanP      Added fRandomJoint for DP support 
 %  15  2017-04-03 10:28  BryanP      Convert to a function to allow selection of algorithms to try 
@@ -37,7 +38,42 @@ function [multi_inv_problem, results] = MultiInv_demo(varargin)
 %   1  2016-04-14 11:23  BryanP      Adapted from MultiInvDP_scratchpad v5
 
 %% Setup problem specific values
-if any(strcmpi('small', varargin))
+if any(strcmpi('single', varargin))
+    % Reproduce Putterman 3.2.2
+    %
+    % Create "single" test case if requested. Which runs a single product
+    % example as a degenerate multi-product example.
+    % With old MultiInvDP_scratchpad this ran in ~5.2sec on MacBook Pro mid-2014
+    %
+    % Solution
+    % Optimal Policy:
+    % state  t= 1   2   3
+    %   0		3	2	0
+    %   1		0	0	0
+    %   2		0	0	0
+    %   3		0	0	0
+    %
+    % Optimal Values:
+    %  state    t= 1  	  2     3   4 
+    %    0      4.1875   2      0	0
+    %    1      8.0625	 6.25	5	0
+    %    2      12.125	 10     6	0
+    %    3      14.1875	 10.5	5	0
+    multiinv_n_periods = 3;
+    multiinv_discount = 0;
+    multiinv_params = { %REQUIRED: Warehouse and product space, size, & demand configuration
+                        'total_space'       3      % Max space in warehouse
+                        'unit_space'        1       % Space per item
+                        'p_demand'          [0.25; 0.5; 0.25] % Probability vector (pmf) of sales per quantity per item. If scalar per item: treated as poisson demand, cell with columns otherwise
+                       % OPTIONAL: Pricing assumptions (can use defaults).
+                       % Note: costs are negative
+                        'order_cost'        -4      % Flat cost to place any order (in additon to per unit costs)
+                        'term_unit_val'     0       % Value of product at end of forecast horizon
+                        'unit_cost'         -2      % Ordering cost per unit. If scalar, assumes same cost for all products
+                        'hold_cost'         -1      % Cost to keep in warehouse per unit per time. If scalar, assumes same cost for all products
+                        'sales_price'       8       % Sales price per unit. If scalar, assumes same cost for all products
+                     };    
+elseif any(strcmpi('small', varargin))
     % Create "small" test case if requested. Also run as old
     % MultiInvDP_scratchpad "small" case in ~0.5sec on MacBook Pro mid-2014
     % model
@@ -58,8 +94,8 @@ if any(strcmpi('small', varargin))
     %
     % Optimal Values:
     %  state    t= 1  	  2       3       4 
-
     multiinv_n_periods = 3;
+    multiinv_discount = 0.1;
     multiinv_params = { %REQUIRED: Warehouse and product space, size, & demand configuration
                         'total_space'       20      % Max space in warehouse
                         'unit_space'        [2 3] % Space per item
@@ -108,7 +144,7 @@ elseif any(strcmpi('medium', varargin))
     %TODO include these entries
 else %Otherwise assume larger sized problem
     multiinv_n_periods = 3;
-
+    multiinv_discount = 0.1;
     multiinv_params = { %REQUIRED: Warehouse and product space, size, & demand configuration
                         'total_space'       50      % Max space in warehouse
                         'unit_space'        [1 3 5] % Space per item
@@ -131,7 +167,7 @@ multiinv_params = MultiInvParamsSetup(multiinv_params);
 multi_inv_problem = struct(...
         ...%Problem Setup
         'params',                   multiinv_params, ...   % Problem specific placeholder to be passed to all functions TODO add a struct before this
-        'discount_rate',            0.1, ...
+        'discount_rate',            multiinv_discount, ...
         'n_periods',                multiinv_n_periods, ...
         ...% State Related
         'state_set',                'assign_later_to_avoid_error', ...    % A cell vector of set objects capturing the pre-decision states. One per timestep TODO: support single item

@@ -11,6 +11,7 @@ function params = MultiInvParamsSetup(params_in)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   5  2017-04-26 17:32  BryanP      Add support for single item 
 %   4  2016-10-21 16:55  BryanP      Bug fix: handle vector values in checks for cost parameters 
 %   3  2016-10-07 01:24  BryanP      Bug fix: actually pass poisson probability vectors to p_demand 
 %   2  2016-10-06 11:24  BryanP      Finished clean-up. Seems to work 
@@ -67,7 +68,14 @@ if iscell(params.p_demand)
     end
 else
     [rows, cols] = size(params.p_demand);
-    if cols == 1 || rows == 1
+    if  params.n_products == 1 && length(params.p_demand) > 1
+        %Single item with specified probabilities
+        if length(params.p_demand) < params.max_inv + 1
+            %Pad an unspecified demand with zero
+            params.p_demand(params.max_inv + 1) = 0;
+        end
+        params.p_demand = {params.p_demand};
+    elseif cols == 1 || rows == 1
         % Treat vectors as a set of lambdas for independant poissons
         assert(length(params.p_demand) == params.n_products, 'Must specify a poisson lambda demand for each item')
         temp_p_demand = cell(1, params.n_products);

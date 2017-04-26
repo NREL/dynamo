@@ -14,6 +14,8 @@ function [results] = dpBI(problem, varargin)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- -------------------------------------
+%   6  2017-04-26 17:32    BryanP     BUGFIX: correct operations costs (now Working!) 
+%   5  2017-04-26 05:32    BryanP     Working? 
 %   4  2017-04-25 07:00    bpalmint   WIP: mostly through uncertainty management 
 %   3  2017-04-09 23:00    bpalmint   WIP: defaults, setup, pre-decision operations cost, parrallel decisions 
 %   2  2016-10-27          dkrishna   Add core algorithm
@@ -157,9 +159,9 @@ for t = problem.n_periods:-1:1
         post_state_list = problem.fDecisionApply(problem.params, t, this_pre_state, decision_list);
         
         %>>>       compute after decision operations costs (vectorized)
-        if not(isempty(problem.fOpsBeforeDecision))
+        if not(isempty(problem.fOpsAfterDecision))
             % Compute unique ops costs, using internal Ops loop
-            after_dec_ops = problem.fOpsAfterDecision(params_only, t, this_pre_state, decision_list);
+            after_dec_ops = problem.fOpsAfterDecision(problem.params, t, post_state_list, decision_list);
         else
             after_dec_ops = 0;
         end
@@ -214,7 +216,7 @@ for t = problem.n_periods:-1:1
         
         %>>>     find optimal_decision as argmin(decision_values)
         optimal_total_decision_value = max(total_decision_value);
-        optimal_decision_idx = find(total_decision_value == optimal_total_decision_value, 1);
+        optimal_decision_idx = find(total_decision_value == optimal_total_decision_value, 1, 'first');
         optimal_decision = decision_list(optimal_decision_idx, :);
 
         %>>>     store optimal_decision in policy array for pre_state and t
