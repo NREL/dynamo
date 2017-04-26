@@ -166,7 +166,7 @@ for t = problem.n_periods:-1:1
     
         %actually start decision loop for non-vecorizable pieces
         expected_random_val = NaN(n_decisions, 1);
-        parfor d = 1:n_decisions
+        for d = 1:n_decisions
             this_decision = decision_list(d, :);
             this_post_state = post_state_list(d, :);
             
@@ -196,7 +196,8 @@ for t = problem.n_periods:-1:1
             next_pre_value = zeros(size(uncertainty_contrib));
             [valid_state_mask, next_state_map] = ismember(next_pre_state_list, pre_state_list{t+1}, 'rows');
             if not(all(valid_state_mask))
-                warning('dbBI:state_not_found', 'Some post uncertainty states not found for post-state: [%s] at t=%d. Setting values to -Inf', this_post_state, t)
+                warning('dbBI:state_not_found', 'Some post uncertainty states not found for post-state: [%s] at t=%d. Setting values to -Inf', ...
+                    sprintf('%g ', this_post_state), t)
                 next_pre_value(not(valid_state_mask)) = -Inf;
             end
             next_pre_value(valid_state_mask) = values{t+1}(next_state_map);

@@ -18,6 +18,7 @@ function [multi_inv_problem, results] = MultiInv_demo(varargin)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  17  2017-04-26 05:24  BryanP      BUGFIX: use setCombinWithLimits (finally available)  
 %  16  2017-04-09 22:42  BryanP      Added fRandomJoint for DP support 
 %  15  2017-04-03 10:28  BryanP      Convert to a function to allow selection of algorithms to try 
 %  14  2016-12-01 22:15  BryanP      Use [] rather than NaN for unused functions 
@@ -36,40 +37,29 @@ function [multi_inv_problem, results] = MultiInv_demo(varargin)
 %   1  2016-04-14 11:23  BryanP      Adapted from MultiInvDP_scratchpad v5
 
 %% Setup problem specific values
-% Create "small" test case if requested. Matches the old
-% MultiInvDP_scratchpad "medium" case which runs in 17.4sec on MacBook Pro
-% mid-2014
-%
-% Solution (top 10 entries)
-% Optimal Policy:
-%  state      t= 1       2       3       4       5
-% [0,0,0]     [2,3,5]	[2,3,5]	[2,3,5]	[2,3,5]	[1,2,3]
-% [0,1,0]     [2,2,5]	[2,2,5]	[2,2,5]	[2,2,5]	[1,1,3]
-% [0,2,0]     [2,1,5]	[2,1,5]	[2,1,5]	[2,1,5]	[1,0,3]
-% [0,3,0]     [2,0,5]	[2,0,5]	[2,0,5]	[2,0,5]	[1,0,3]
-% [0,4,0]     [2,0,4]	[2,0,4]	[2,0,4]	[2,0,4]	[1,0,3]
-% [0,5,0]     [1,0,3]	[1,0,3]	[1,0,3]	[1,0,3]	[1,0,3]
-% [0,6,0]     [0,0,2]	[0,0,2]	[0,0,2]	[0,0,2]	[0,0,2]
-% [1,0,0]     [1,3,5]	[1,3,5]	[1,3,5]	[1,3,5]	[0,2,3]
-% [1,1,0]     [1,2,5]	[1,2,5]	[1,2,5]	[1,2,5]	[0,1,3]
-% [1,2,0]     [1,1,5]	[1,1,5]	[1,1,5]	[1,1,5]	[0,0,3]
-%
-% Optimal Values:
-%  state    t= 1  	  2       3       4 	  5      6
-% [0,0,0]     73.1	60.4	46.4	30.8	13.3	0.0
-% [0,1,0]     75.1	62.4	48.4	32.8	15.3	0.0
-% [0,2,0]     77.1	64.4	50.4	34.8	17.3	0.0
-% [0,3,0]     79.1	66.4	52.4	36.8	18.9	0.0
-% [0,4,0]     80.7	68.1	54.0	38.2	19.1	0.0
-% [0,5,0]     79.8	67.1	53.0	36.8	18.5	0.0
-% [0,6,0]     73.7	61.0	46.8	30.5	14.0	0.0
-% [1,0,0]     75.1	62.4	48.4	32.8	15.3	0.0
-% [1,1,0]     77.1	64.4	50.4	34.8	17.3	0.0
-% [1,2,0]     79.1	66.4	52.4	36.8	19.3	0.0
-
-
 if any(strcmpi('small', varargin))
-    multiinv_n_periods = 4;
+    % Create "small" test case if requested. Also run as old
+    % MultiInvDP_scratchpad "small" case in ~0.5sec on MacBook Pro mid-2014
+    % model
+    %
+    % Solution (top 10 entries)
+    % Optimal Policy:
+    % state    t= 1       2       3
+    % [0,0]		[2,4]	[2,4]	[1,2]
+    % [0,1]		[2,3]	[2,3]	[0,0]
+    % [0,2]		[2,2]	[2,2]	[0,0]
+    % [0,3]		[2,1]	[0,0]	[0,0]
+    % [0,4]		[2,0]	[2,0]	[0,0]
+    % [0,5]		[2,0]	[2,0]	[0,0]
+    % [0,6]		[0,0]	[0,0]	[0,0]
+    % [1,0]		[1,4]	[1,4]	[0,2]
+    % [1,1]		[1,3]	[1,3]	[0,0]
+    % [1,2]		[0,0]	[0,0]	[0,0]
+    %
+    % Optimal Values:
+    %  state    t= 1  	  2       3       4 
+
+    multiinv_n_periods = 3;
     multiinv_params = { %REQUIRED: Warehouse and product space, size, & demand configuration
                         'total_space'       20      % Max space in warehouse
                         'unit_space'        [2 3] % Space per item
@@ -82,7 +72,41 @@ if any(strcmpi('small', varargin))
                         'hold_cost'         -1      % Cost to keep in warehouse per unit per time. If scalar, assumes same cost for all products
                         'sales_price'       8       % Sales price per unit. If scalar, assumes same cost for all products
                      };    
-else %Otherwise assume medium sized problem
+elseif any(strcmpi('medium', varargin))
+    % Create "medium" test case if requested. Matches the old
+    % MultiInvDP_scratchpad "medium" case which runs in 17.4sec on MacBook Pro
+    % mid-2014 model
+    %
+    % Solution (top 10 entries)
+    % Optimal Policy:
+    %  state      t= 1       2       3       4       5
+    % [0,0,0]     [2,3,5]	[2,3,5]	[2,3,5]	[2,3,5]	[1,2,3]
+    % [0,1,0]     [2,2,5]	[2,2,5]	[2,2,5]	[2,2,5]	[1,1,3]
+    % [0,2,0]     [2,1,5]	[2,1,5]	[2,1,5]	[2,1,5]	[1,0,3]
+    % [0,3,0]     [2,0,5]	[2,0,5]	[2,0,5]	[2,0,5]	[1,0,3]
+    % [0,4,0]     [2,0,4]	[2,0,4]	[2,0,4]	[2,0,4]	[1,0,3]
+    % [0,5,0]     [1,0,3]	[1,0,3]	[1,0,3]	[1,0,3]	[1,0,3]
+    % [0,6,0]     [0,0,2]	[0,0,2]	[0,0,2]	[0,0,2]	[0,0,2]
+    % [1,0,0]     [1,3,5]	[1,3,5]	[1,3,5]	[1,3,5]	[0,2,3]
+    % [1,1,0]     [1,2,5]	[1,2,5]	[1,2,5]	[1,2,5]	[0,1,3]
+    % [1,2,0]     [1,1,5]	[1,1,5]	[1,1,5]	[1,1,5]	[0,0,3]
+    %
+    % Optimal Values:
+    %  state    t= 1  	  2       3       4 	  5      6
+    % [0,0,0]     73.1	60.4	46.4	30.8	13.3	0.0
+    % [0,1,0]     75.1	62.4	48.4	32.8	15.3	0.0
+    % [0,2,0]     77.1	64.4	50.4	34.8	17.3	0.0
+    % [0,3,0]     79.1	66.4	52.4	36.8	18.9	0.0
+    % [0,4,0]     80.7	68.1	54.0	38.2	19.1	0.0
+    % [0,5,0]     79.8	67.1	53.0	36.8	18.5	0.0
+    % [0,6,0]     73.7	61.0	46.8	30.5	14.0	0.0
+    % [1,0,0]     75.1	62.4	48.4	32.8	15.3	0.0
+    % [1,1,0]     77.1	64.4	50.4	34.8	17.3	0.0
+    % [1,2,0]     79.1	66.4	52.4	36.8	19.3	0.0
+
+
+    %TODO include these entries
+else %Otherwise assume larger sized problem
     multiinv_n_periods = 3;
 
     multiinv_params = { %REQUIRED: Warehouse and product space, size, & demand configuration
@@ -142,9 +166,7 @@ multi_inv_problem = struct(...
 
 %--Create (pre-decision) state space (state_set)
 % TODO: replace with setCombinWithLimits
-inventory_range = [zeros(size(multiinv_params.max_inv))
-                               multiinv_params.max_inv              ];
-multiinv_state_set = { setBasic(inventory_range, '', ones(1, multiinv_params.n_products)) };
+multiinv_state_set = { setCombinWithLimits('',  false, multiinv_params.unit_space, multiinv_params.total_space)};
 % Since state is the same for all time periods we first create it and
 % then replicate it.
 % Notes: 
