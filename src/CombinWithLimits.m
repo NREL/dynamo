@@ -65,24 +65,25 @@ function [item_count_list, value_list, sum_list, opt] = CombinWithLimits(space_p
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
-%   1  2010-05-15 20:47  BryanP      original concept code
-%   2  2010-05-16 01:45  BryanP      completed versions 1:3 and tested
-%   3  2010-05-16 21:30  BryanP      Added #4: n-D matrix (fastest yet)
-%   4  2010-05-26 07:25  BryanP      renamed ValidCombin, expanded comments
-%   5  2010-05-26 10:45  BryanP      Added item max, min. Splitout recursion
-%   6  2010-05-26 16:50  BryanP      Added min_space_used, debug item_min
-%   7  2010-06-06 01:00  BryanP      Added option to specify rounding
-%   8  2011-03-08 17:00  BryanP      Expanded usage notes/help
-%   9  2011-03-29 10:10  BryanP      Renamed MultiInvValidCombin to CombinWithLimits
-%  10  2011-03-30 00:10  BryanP      Corrected initalization of item_counts
-%  11  2011-06-10 12:50  BryanP      added value_list and sum_list outputs
-%  12  2011-06-10 15:00  BryanP      Fixed missing states using @ceil
-%  13  2012-01-19 07:46  BryanP      Sort small_to_big to ensure all possible states are included (esp with @ceil)
+%  18  2017-04-26 05:02  BryanP      BUGFIX typo when returning input options  
+%  17  2016-07-08 07:30  BryanP      Added ability to return summary of input/settings as "opt" 
+%  16  2012-07-02 14:50  BryanP      BUGFIX: prevent pre-mature loop break when current set empty, but valid future set  
+%  15  2012-06-28 21:36  BryanP      Allow specifying fRoundMin, and defaults to complement fRoundMax 
 %  14  2012-06-02 21:16  BryanP      Bugfix for errant cases with high values for one item and zeros otherwise.
 %                                    ALSO: quit for loop early if nothing more to add 
-%  15  2012-06-28 21:36  BryanP      Allow specifying fRoundMin, and defaults to complement fRoundMax 
-%  16  2012-07-02 14:50  BryanP      BUGFIX: prevent pre-mature loop break when current set empty, but valid future set  
-%  17  2016-07-08 07:30  BryanP      Added ability to return summary of input/settings as "opt" 
+%  13  2012-01-19 07:46  BryanP      Sort small_to_big to ensure all possible states are included (esp with @ceil)
+%  12  2011-06-10 15:00  BryanP      Fixed missing states using @ceil
+%  11  2011-06-10 12:50  BryanP      added value_list and sum_list outputs
+%  10  2011-03-30 00:10  BryanP      Corrected initalization of item_counts
+%   9  2011-03-29 10:10  BryanP      Renamed MultiInvValidCombin to CombinWithLimits
+%   8  2011-03-08 17:00  BryanP      Expanded usage notes/help
+%   7  2010-06-06 01:00  BryanP      Added option to specify rounding
+%   6  2010-05-26 16:50  BryanP      Added min_space_used, debug item_min
+%   5  2010-05-26 10:45  BryanP      Added item max, min. Splitout recursion
+%   4  2010-05-26 07:25  BryanP      renamed ValidCombin, expanded comments
+%   3  2010-05-16 21:30  BryanP      Added #4: n-D matrix (fastest yet)
+%   2  2010-05-16 01:45  BryanP      completed versions 1:3 and tested
+%   1  2010-05-15 20:47  BryanP      original concept code
 
     %% ----- Initialize optional parameters -----
     %-- Handle total_space
@@ -185,7 +186,7 @@ function [item_count_list, value_list, sum_list, opt] = CombinWithLimits(space_p
     if nargout > 3
         %Return as used input (and default) options if desired
         opt.space_per_item = space_per_item;
-        opt.total_space = otal_space;
+        opt.total_space = total_space;
         opt.item_max = item_max;
         opt.min_space_used = min_space_used;
         opt.item_min = item_min;

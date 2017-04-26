@@ -227,7 +227,7 @@ for t = problem.n_periods:-1:1
     end
 
     if dp_opt.verbose
-        fprintf('Done. %d states\n', n_pre_states)
+        fprintf('Done: %d states\n', n_pre_states)
     end
 
 end

@@ -9,6 +9,7 @@ classdef setBasic < AbstractSet
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   7  2017-04-26 04:14  BryanP      Support updating discrete steps during call to as_array 
 %   6  2016-10-21 15:24  BryanP      BUGFIX: correct handling of multi-dimensional ranges 
 %   5  2016-10-06 11:24  BryanP      Fix bug by explicitly calling superclass constructor 
 %   4  2016-09-29 14:35  BryanP      Fix bug with repeating creation of qrand stream... oops 
@@ -48,7 +49,7 @@ classdef setBasic < AbstractSet
                 sample_type = 'rand';
             end
             
-            %IMPORTANT: must call superclass to match proper inputs
+            %IMPORTANT: must call superclass since we alter the input order 
             % Also sets N_dim
             obj@AbstractSet(size(sample_minmax,2), sample_type);
 
@@ -129,7 +130,11 @@ classdef setBasic < AbstractSet
         %
         % value_list = setBasicObject.as_array(discrete_steps)
         %    Use the specified number of steps, for continuous
-        %    approximation
+        %    approximation. Also updates object with new step selection.
+        
+            if nargin > 1 && not(isempty(discrete_steps))
+                obj.DStepsForContinuous = discrete_steps;
+            end
 
             % If we haven't done so before, build up the full value list
             % (Potentially Slow)

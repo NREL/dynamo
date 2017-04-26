@@ -50,7 +50,7 @@ classdef AbstractSet < handle
                 sample_type = 'rand';
             end
 
-            %Typically derived from other input
+            %Typically derived from other input in subclasses
             obj.N_dim = n_dim;
             
             obj.sample_init(sample_type);

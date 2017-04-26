@@ -73,7 +73,7 @@ if any(strcmpi('small', varargin))
     multiinv_params = { %REQUIRED: Warehouse and product space, size, & demand configuration
                         'total_space'       20      % Max space in warehouse
                         'unit_space'        [2 3] % Space per item
-                        'p_demand'          [1 2] % Probability vector (pmf) of sales per quantity per tiem. If scalar per item: treated as poisson demand, cell with columns otherwise
+                        'p_demand'          [1 2] % Probability vector (pmf) of sales per quantity per item. If scalar per item: treated as poisson demand, cell with columns otherwise
                        % OPTIONAL: Pricing assumptions (can use defaults).
                        % Note: costs are negative
                         'order_cost'        -4      % Flat cost to place any order (in additon to per unit costs)

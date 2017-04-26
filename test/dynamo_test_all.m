@@ -15,6 +15,7 @@ end
 docs_to_test = {    
                     %Sets
                     'setSingleItem'
+                    'setCombinWithLimits'
                     %Random Processes
                     'rpDiscreteSample'
                     %Utilities

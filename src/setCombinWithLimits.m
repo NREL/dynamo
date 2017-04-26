@@ -1,22 +1,99 @@
 classdef setCombinWithLimits < AbstractSet
-
-% WARNING--INCOMPLETE May not fully comply with latest AbstractSet and
-% not all functions fully implemented
-    
 %setCOMBINGWITHLIMITS set class for volume restricted Nd spaces
 %
 % Provides set standard support for listing, sampling, and range
 % for volume restricted Nd spaces such as state spaces for multi-product
 % inventory or generation capacity expansion planning.
 %
-% adapted from SampleNdRange (v4) by Bryan Palmintier 2016
+% The set can be represented as either item counts (such as for inventory
+% problems) or using the "space" per item, which allows capacity based
+% entries such as the installed capacity of power generation.
+%
+% Examples:
+% % Item count space
+% >> rng('default')  %Reset random number stream
+% >> my_set = setCombinWithLimits('from_list', false, [2 3], 6)
+% 
+% my_set = 
+% 
+%   setCombinWithLimits with properties:
+% 
+%     UseValueSpace: 0
+%               Opt: [1x1 struct]
+%          N_Combin: 7
+%              name: ''
+%      pt_dim_names: {}
+%        SampleType: 'from_list'
+%             N_dim: 2
+%      DiscreteMask: []
+% 
+% >> my_set.as_array()
+% 
+% ans =
+% 
+%      0     0
+%      0     1
+%      0     2
+%      1     0
+%      1     1
+%      2     0
+%      3     0
+% 
+% >> my_set.sample()
+% 
+% ans =
+% 
+%      2     0
+% 
+% >> my_set.sample(5)
+% 
+% ans =
+% 
+%      3     0
+%      0     0
+%      3     0
+%      1     1
+%      0     0
+% 
+% 
+% % Item count space
+% >> my_set = setCombinWithLimits('from_list', true, [2 3], 6)
+% 
+% my_set = 
+% 
+%   setCombinWithLimits with properties:
+% 
+%     UseValueSpace: 1
+%               Opt: [1x1 struct]
+%          N_Combin: 7
+%              name: ''
+%      pt_dim_names: {}
+%        SampleType: 'from_list'
+%             N_dim: 2
+%      DiscreteMask: []
+% 
+% >> my_set.as_array()
+% 
+% ans =
+% 
+%      0     0
+%      0     3
+%      0     6
+%      2     0
+%      2     3
+%      4     0
+%      6     0
+%
+%
+% Initially by Bryan Palmintier 2016
 %
 % see also:
-%  setNdRange, AbstactSet, CombinWithLimits
+%  setBasic, AbstactSet, CombinWithLimits
 
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   2  2017-04-26 04:46  BryanP      Overhauled for revised AbstractSet (v4) 
 %   1  2016-07-08 07:00  BryanP      Initial version adapted from setNdRange v2 
 
     properties
@@ -25,7 +102,8 @@ classdef setCombinWithLimits < AbstractSet
 
     % Read-only properties (set by constructor)
     properties (SetAccess='protected')
-        Opt = struct()      %Structure with all parameters used by CombinWithLimits function
+        Opt = struct();      %Structure with all parameters used by CombinWithLimits function
+        N_Combin = NaN;
     end
         
     % Hidden properties
@@ -35,15 +113,17 @@ classdef setCombinWithLimits < AbstractSet
     end
     
     methods
-        function obj = setCombinWithLimits(sample_type, use_value_space, varargin)
+        function obj = setCombinWithLimits(sample_type, use_value_space, space_per_item, varargin)
         % CONSTRUCTOR (setCombinWithLimits)
         %
-        % Note: after sample_type, all parameters follow the same
-        % conventions as CombinWithLimits. (In fact they are directly passed
-        % there)
-        %
-        % obj = setCombinWithLimits(sample_type, value_space, space_per_item, total_space)
-        %   Specify total volume with other defaults
+        % obj = setCombinWithLimits(sample_type, use_value_space, space_per_item, total_space)
+        %   Specify the sampling type: 'rand' or 'sobol' for accept/reject [NOT IMPLEMENTED] 
+        %                              'from_list' to build full set of combin and sample from the list 
+        %   use_value_space (boolean): return combinations as total 
+        %                              capacity/space (true) or item counts (false)
+        %   remaining options follow the same conventions as
+        %   CombinWithLimits. (passed directly). Here is the most common
+        %   use with a finite space_per_item used to fill a total_space
         %
         % obj = setCombinWithLimits(sample_type, value_space, space_per_item, [], item_max)
         %   Specify limits per item (can also be used with total_space)
@@ -51,6 +131,7 @@ classdef setCombinWithLimits < AbstractSet
         % obj = setCombinWithLimits(sample_type, value_space, space_per_item, ...
         %                       total_space, item_max, min_space_used, ...
         %                       item_min, fRoundMax, fRoundMin)
+        %   Full CombinWithLimits options. See help there
 
             if nargin < 3  %Support no argument constructor syntax using defaults
                 sample_type = 'rand';
@@ -58,70 +139,73 @@ classdef setCombinWithLimits < AbstractSet
                 varargin = {};
             end
 
+            if strcmp(sample_type, 'from_list')
+                %Explicitly build combin with limits list and sample from
+                %it. Should be fastest for higher dimensions and thin
+                %shells
+                %
+                % For now this is the default
+                obj.SampleType = sample_type;
+            else
+                %TODO: Setup accept/reject sampling using sobol, multi-dimensional rand 
+                % obj@AbstractSet(size(space_per_item, 2), sample_type);
+                if strcmp(sample_type, 'sobol')
+                    warning('AdpSample:Unsupported', 'sobol is currently not supported for setCombinWithLimits, defaulting to from_list')
+                end
+                %For rand, use from_list without warning
+                obj.SampleType = 'from_list';
+            end
+            
+            %Update N_dim b/c we don't call parent constructor
+            obj.N_dim = size(space_per_item, 2);
             obj.UseValueSpace = use_value_space;    %Note: this can be changed later by user
             obj.FullListIsStoredAsValue = use_value_space;
             
+            % If needed, build the full list using CombinWithLimits
             if obj.UseValueSpace
-                [~, obj.FullValueList, ~, obj.Opt] = CombinWithLimits(varargin);
+                % The second return value includes the capacity-based list
+                [~, obj.FullValueList, ~, obj.Opt] = CombinWithLimits(space_per_item, varargin{:});
             else
-                [obj.FullValueList, ~, ~, obj.Opt] = CombinWithLimits(varargin);
+                % The first return value includes item counts
+                [obj.FullValueList, ~, ~, obj.Opt] = CombinWithLimits(space_per_item, varargin{:});
             end
+            obj.N_Combin = size(obj.FullValueList, 1);
             
-            if strcmp(sample_type, 'sobol')
-                warning('AdpSample:Unsupported', 'sobol is currently not supported for setCombinWithLimits, defaulting to rand')
-                sample_type = 'rand';
-            end
-            obj.sample_init_(sample_type);
         end
 
-        function value_list = sample(obj, ~, N, varargin) 
+        function value_list = sample(obj, N, ~, varargin) 
         % SAMPLE Return the requested number of multi-dimensional samples
         %  Values are scaled to fill the entire range. Assumed constant
         %  over all time
         %
-        % out = NdSampleObject.sample(t)  
+        % out = setCombinWithLimitsObject.sample()  
         %           Return a single sample
-        % out = NdSampleObject.sample(t, N)  
+        % out = setCombinWithLimitsObject.sample(N)  
         %           Return N samples
-            if nargin < 3 || isempty(N)
+            if nargin < 2 || isempty(N)
                 N = 1;
             end
             
-            % get required samples over 0:1 range using base class
-            value_list = obj.SampleParams.fRaw(N);
+            if not(strcmp(obj.SampleType, 'from_list'))
+                warning('AdpSample:Unsupported', 'Unsupported sample type (%s) is currently not supported for setCombinWithLimits, defaulting to from_list', obj.SampleType)
+            end
             
-            % -- Transform from [0,1] to desired sample_minmax
-            % Expand to cover desired rang
-            value_list = bsxfun(@times, value_list, obj.SampleParams.Range);
+            %TODO: implement sample-reject
             
-            % Round any discrete values
-            value_list(:,obj.DiscreteMask) = bsxfun(@times, ...
-                floor(value_list(:,obj.DiscreteMask)), obj.StepSize(:,obj.DiscreteMask));
-            % Adjust sample upward
-            value_list = bsxfun(@plus, value_list, obj.SampleParams.Offset);
-
+            sample_idx = randi(obj.N_Combin, N, 1);
+            value_list = obj.FullValueList(sample_idx, :);
         end
 
         %% ===== Support for discrete usage
-        % These need to be defined even for continuous processes, for
-        % compatability with DP.
-        %
-        % IMPORTANT: all processes must have a single, starting state for t=0
         
-        function value_list = dlist (obj, ~)
-        % DLIST List possible discrete states
+        function value_list = as_array (obj, ~, varargin)
+        % AS_ARRAY List possible (discrete) states
         %
-        % List possible discrete states (same for all time)
+        % setCombinWithLimit is inherently already discrete, so simply
+        % return our list of item combinations
 
             %If our current Value state is the same as stored, return it
-            if obj.UseValueState == obj.FullListIsStoredAsValue
-                value_list = obj.FullValueList;
-            elseif obj.UseValueState %must be stored as counts
-                value_list = bsxfun(@times, obj.FullValueList, obj.Opt.space_per_item);
-            else %must need counts from values
-                value_list = round(bsxfun(@rdivide, obj.FullValueList, obj.Opt.space_per_item));
-            end
-            
+            value_list = obj.FullValueList;
         end
             
 
