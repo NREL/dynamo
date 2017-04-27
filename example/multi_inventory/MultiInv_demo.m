@@ -97,7 +97,15 @@ if any(strcmpi('single', varargin))
                         'hold_cost'         -1      % Cost to keep in warehouse per unit per time. If scalar, assumes same cost for all products
                         'sales_price'       8       % Sales price per unit. If scalar, assumes same cost for all products
                      };    
-elseif any(strcmpi('medium', varargin))
+                 
+	sbi_opt = { 'sbi_state_samples_per_time'            20    % Number of state samples per time period
+                'sbi_decisions_per_sample'              5    % Number of decision samples per state
+                'sbi_uncertain_samples_per_post'        5     % Number of random/uncertainty samples per time, used for all decisions
+                
+                'vfun_approx'                           'LocalAvg'
+                };
+
+elseif any(strcmpi('medium', varargin)) || any(strcmpi('med', varargin))
     % Create "medium" test case if requested. Matches the old
     % MultiInvDP_scratchpad "medium" case which runs in 17.4sec on MacBook Pro
     % mid-2014 model
@@ -153,7 +161,13 @@ elseif any(strcmpi('medium', varargin))
                         'sales_price'       8       % Sales price per unit. If scalar, assumes same cost for all products
                      };    
 
-    %TODO include these entries
+	sbi_opt = { 'sbi_state_samples_per_time'            200    % Number of state samples per time period
+                'sbi_decisions_per_sample'              30    % Number of decision samples per state
+                'sbi_uncertain_samples_per_post'        30     % Number of random/uncertainty samples per time, used for all decisions
+                
+                'vfun_approx'                           'LocalAvg'
+                };
+
 elseif any(strcmpi('large', varargin))
     % NOTE: Not well tested
     
