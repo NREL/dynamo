@@ -65,6 +65,7 @@ classdef faLocalAvg < FuncApprox
 %% HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  14  2017-04-26 22:55  BryanP      BUGFIX: fix to avoid excess NaN
 %  13  2017-04-03 09:18  BryanP      Added autoexpand support
 %  12  2016-11-10 13:05  BryanP      Expose sampling config for user to edit 
 %  11  2012-06-20        BryanP      BUGFIX: return vector of values from approx with only one stored sample
@@ -475,13 +476,15 @@ classdef faLocalAvg < FuncApprox
                     end
 
                     %Auto expand to include at least one point if needed
-                    if isempty(near_idx) && obj.AutoExpand
-                        [near_idx, near_dist] = ...
-                            kdtree_k_nearest_neighbors(obj.Func, norm_out_pts(p,:), 1);
-                    else
-                        %if not, return NaN
-                        out_vals(p) = NaN;
-                        continue
+                    if isempty(near_idx)
+                        if obj.AutoExpand
+                            [near_idx, near_dist] = ...
+                                kdtree_k_nearest_neighbors(obj.Func, norm_out_pts(p,:), 1);
+                        else
+                            %if not, return NaN
+                            out_vals(p) = NaN;
+                            continue
+                        end
                     end
                     
                     % extract the neighborhood values

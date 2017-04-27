@@ -7,6 +7,12 @@ function [multi_inv_problem, results] = MultiInv_demo(varargin)
 % [multi_inv_problem, multiinv_params] = MultiInv_demo()
 %   also separately return inner parameters
 %
+% MultiInv_demo(scenario_str)
+%   specify which scenario to setup. Valid options are:
+%     'single'   small, single inventory problem (Putterman 3.2.3)
+%     'small'    A 2 dimensional multi-inventory that runs in a few seconds for DP 
+%     'medium'   A 3 dimensional multi-inventory that runs in about a minute for DP 
+%
 % MultiInv_demo(__, 'dp')
 % MultiInv_demo(__, 'dpBI')
 %   Run traditional backward induction on example MultiInv problem
@@ -14,6 +20,24 @@ function [multi_inv_problem, results] = MultiInv_demo(varargin)
 % MultiInv_demo(__, 'sbi')
 % MultiInv_demo(__, 'adpSBI')
 %   Run sampled backward induction ADP algorithm on example MultiInv problem
+%
+%
+% Test using the small case and pre-computed optimal policy:
+% >> small_opt_policy = {[0,0]		[2,4]	[2,4]	[1,2]; [0,1]		[2,3]	[2,3]	[0,0]; [0,2]		[2,2]	[2,2]	[0,0];  [0,3]		[2,1]	[0,0]	[0,0] ; [0,4]		[2,0]	[2,0]	[0,0] ; [0,5]		[2,0]	[2,0]	[0,0] ; [0,6]		[0,0]	[0,0]	[0,0];  [1,0]		[1,4]	[1,4]	[0,2] ; [1,1]		[1,3]	[1,3]	[0,0]; [1,2]		[0,0]	[0,0]	[0,0] }; 
+% >> small_opt_value = 'TODO';
+% >> [small_prob, small_result] = MultiInv_demo('small', 'dp');
+%     Backward Induction DP
+%         T=4 (terminal period): Done
+%         T=3:Done: 44 states
+%         T=2:Done: 44 states
+%         T=1:Done: 44 states
+%     Elapsed time is *** seconds.
+%
+% >> small_policy = cell2mat(small_result.dpbi_policy);
+% >> small_opt_policy = cell2mat(small_opt_policy);
+% >> isequal(small_opt_policy(:, 3:end), small_policy(1:10,:))
+%    ans = 
+%         1
 
 % HISTORY
 % ver     date    time       who     changes made
@@ -73,49 +97,14 @@ if any(strcmpi('single', varargin))
                         'hold_cost'         -1      % Cost to keep in warehouse per unit per time. If scalar, assumes same cost for all products
                         'sales_price'       8       % Sales price per unit. If scalar, assumes same cost for all products
                      };    
-elseif any(strcmpi('small', varargin))
-    % Create "small" test case if requested. Also run as old
-    % MultiInvDP_scratchpad "small" case in ~0.5sec on MacBook Pro mid-2014
-    % model
-    %
-    % Solution (top 10 entries)
-    % Optimal Policy:
-    % state    t= 1       2       3
-    % [0,0]		[2,4]	[2,4]	[1,2]
-    % [0,1]		[2,3]	[2,3]	[0,0]
-    % [0,2]		[2,2]	[2,2]	[0,0]
-    % [0,3]		[2,1]	[0,0]	[0,0]
-    % [0,4]		[2,0]	[2,0]	[0,0]
-    % [0,5]		[2,0]	[2,0]	[0,0]
-    % [0,6]		[0,0]	[0,0]	[0,0]
-    % [1,0]		[1,4]	[1,4]	[0,2]
-    % [1,1]		[1,3]	[1,3]	[0,0]
-    % [1,2]		[0,0]	[0,0]	[0,0]
-    %
-    % Optimal Values:
-    %  state    t= 1  	  2       3       4 
-    multiinv_n_periods = 3;
-    multiinv_discount = 0.1;
-    multiinv_params = { %REQUIRED: Warehouse and product space, size, & demand configuration
-                        'total_space'       20      % Max space in warehouse
-                        'unit_space'        [2 3] % Space per item
-                        'p_demand'          [1 2] % Probability vector (pmf) of sales per quantity per item. If scalar per item: treated as poisson demand, cell with columns otherwise
-                       % OPTIONAL: Pricing assumptions (can use defaults).
-                       % Note: costs are negative
-                        'order_cost'        -4      % Flat cost to place any order (in additon to per unit costs)
-                        'term_unit_val'     0       % Value of product at end of forecast horizon
-                        'unit_cost'         -2      % Ordering cost per unit. If scalar, assumes same cost for all products
-                        'hold_cost'         -1      % Cost to keep in warehouse per unit per time. If scalar, assumes same cost for all products
-                        'sales_price'       8       % Sales price per unit. If scalar, assumes same cost for all products
-                     };    
 elseif any(strcmpi('medium', varargin))
     % Create "medium" test case if requested. Matches the old
     % MultiInvDP_scratchpad "medium" case which runs in 17.4sec on MacBook Pro
     % mid-2014 model
     %
-    % Solution (top 10 entries)
-    % Optimal Policy:
-    %  state      t= 1       2       3       4       5
+    % Optimal Solution (top 10 entries)
+    % >> optimal_policy = {
+    % %state      t= 1       2       3       4       5
     % [0,0,0]     [2,3,5]	[2,3,5]	[2,3,5]	[2,3,5]	[1,2,3]
     % [0,1,0]     [2,2,5]	[2,2,5]	[2,2,5]	[2,2,5]	[1,1,3]
     % [0,2,0]     [2,1,5]	[2,1,5]	[2,1,5]	[2,1,5]	[1,0,3]
@@ -125,10 +114,10 @@ elseif any(strcmpi('medium', varargin))
     % [0,6,0]     [0,0,2]	[0,0,2]	[0,0,2]	[0,0,2]	[0,0,2]
     % [1,0,0]     [1,3,5]	[1,3,5]	[1,3,5]	[1,3,5]	[0,2,3]
     % [1,1,0]     [1,2,5]	[1,2,5]	[1,2,5]	[1,2,5]	[0,1,3]
-    % [1,2,0]     [1,1,5]	[1,1,5]	[1,1,5]	[1,1,5]	[0,0,3]
+    % [1,2,0]     [1,1,5]	[1,1,5]	[1,1,5]	[1,1,5]	[0,0,3] };
     %
-    % Optimal Values:
-    %  state    t= 1  	  2       3       4 	  5      6
+    % >> optimal_value = {
+    % % state    t= 1  	  2       3       4 	  5      6
     % [0,0,0]     73.1	60.4	46.4	30.8	13.3	0.0
     % [0,1,0]     75.1	62.4	48.4	32.8	15.3	0.0
     % [0,2,0]     77.1	64.4	50.4	34.8	17.3	0.0
@@ -138,11 +127,36 @@ elseif any(strcmpi('medium', varargin))
     % [0,6,0]     73.7	61.0	46.8	30.5	14.0	0.0
     % [1,0,0]     75.1	62.4	48.4	32.8	15.3	0.0
     % [1,1,0]     77.1	64.4	50.4	34.8	17.3	0.0
-    % [1,2,0]     79.1	66.4	52.4	36.8	19.3	0.0
+    % [1,2,0]     79.1	66.4	52.4	36.8	19.3	0.0 };
+    %
+    % >> [med_prob, med_result] = MultiInv_demo('medium', 'dp');
+    % ***
+    % >> med_policy = cell2mat(med_result);
+    % >> optimal_policy = cell2mat(optimal_policy);
+    % >> isequal(optimal_policy(:, 4:end), med_policy(1:10,:))
+    %
+    % ans =
+    %      1
 
+    multiinv_n_periods = 5;
+    multiinv_discount = 0.1;
+    multiinv_params = { %REQUIRED: Warehouse and product space, size, & demand configuration
+                        'total_space'       20      % Max space in warehouse
+                        'unit_space'        [2 3 1] % Space per item
+                        'p_demand'          [1 2 3] % Probability vector (pmf) of sales per quantity per item. If scalar per item: treated as poisson demand, cell with columns otherwise
+                       % OPTIONAL: Pricing assumptions (can use defaults).
+                       % Note: costs are negative
+                        'order_cost'        -4      % Flat cost to place any order (in additon to per unit costs)
+                        'term_unit_val'     0       % Value of product at end of forecast horizon
+                        'unit_cost'         -2      % Ordering cost per unit. If scalar, assumes same cost for all products
+                        'hold_cost'         -1      % Cost to keep in warehouse per unit per time. If scalar, assumes same cost for all products
+                        'sales_price'       8       % Sales price per unit. If scalar, assumes same cost for all products
+                     };    
 
     %TODO include these entries
-else %Otherwise assume larger sized problem
+elseif any(strcmpi('large', varargin))
+    % NOTE: Not well tested
+    
     multiinv_n_periods = 3;
     multiinv_discount = 0.1;
     multiinv_params = { %REQUIRED: Warehouse and product space, size, & demand configuration
@@ -157,6 +171,63 @@ else %Otherwise assume larger sized problem
                         'hold_cost'         -1      % Cost to keep in warehouse per unit per time. If scalar, assumes same cost for all products
                         'sales_price'       8       % Sales price per unit. If scalar, assumes same cost for all products
                      };    
+
+	sbi_opt = { 'sbi_state_samples_per_time'            400    % Number of state samples per time period
+                'sbi_decisions_per_sample'              80    % Number of decision samples per state
+                'sbi_uncertain_samples_per_post'        80     % Number of random/uncertainty samples per time, used for all decisions
+                
+                'vfun_approx'                           'LocalAvg'
+                };
+else
+    % DEFAULT TO SMALL PROBLEM
+    %
+    % Create "small" test case if requested. Also run as old
+    % MultiInvDP_scratchpad "small" case in ~0.5sec on MacBook Pro mid-2014
+    % model
+    %
+    % Optimal Solution (top 10 entries)
+    % >> small_opt_policy = {
+    % % state    t= 1       2       3
+    % [0,0]		[2,4]	[2,4]	[1,2]
+    % [0,1]		[2,3]	[2,3]	[0,0]
+    % [0,2]		[2,2]	[2,2]	[0,0]
+    % [0,3]		[2,1]	[0,0]	[0,0]
+    % [0,4]		[2,0]	[2,0]	[0,0]
+    % [0,5]		[2,0]	[2,0]	[0,0]
+    % [0,6]		[0,0]	[0,0]	[0,0]
+    % [1,0]		[1,4]	[1,4]	[0,2]
+    % [1,1]		[1,3]	[1,3]	[0,0]
+    % [1,2]		[0,0]	[0,0]	[0,0] };
+    %
+    % >> small_opt_policy = 'TODO';
+    % >> [small_prob, small_result] = MultiInv_demo('small', 'dp');
+    % ...
+    % >> small_policy = cell2mat(small_result.dpbi_policy);
+    % >> small_opt_policy = cell2mat(small_opt_policy);
+    % >> isequal(small_opt_policy(:, 3:end), small_policy(1:10,:))
+
+    multiinv_n_periods = 3;
+    multiinv_discount = 0.1;
+    multiinv_params = { %REQUIRED: Warehouse and product space, size, & demand configuration
+                        'total_space'       20      % Max space in warehouse
+                        'unit_space'        [2 3] % Space per item
+                        'p_demand'          [1 2] % Probability vector (pmf) of sales per quantity per item. If scalar per item: treated as poisson demand, cell with columns otherwise
+                       % OPTIONAL: Pricing assumptions (can use defaults).
+                       % Note: costs are negative
+                        'order_cost'        -4      % Flat cost to place any order (in additon to per unit costs)
+                        'term_unit_val'     0       % Value of product at end of forecast horizon
+                        'unit_cost'         -2      % Ordering cost per unit. If scalar, assumes same cost for all products
+                        'hold_cost'         -1      % Cost to keep in warehouse per unit per time. If scalar, assumes same cost for all products
+                        'sales_price'       8       % Sales price per unit. If scalar, assumes same cost for all products
+                     };    
+
+    sbi_opt = { 'sbi_state_samples_per_time'            150    % Number of state samples per time period
+                'sbi_decisions_per_sample'              20     % Number of decision samples per state
+                'sbi_uncertain_samples_per_post'        10     % Number of random/uncertainty samples per time, used for all decisions
+                
+                'vfun_approx'                           'LocalRegr'
+                };
+
 end
 
 % Build up additional derived fields. Also takes poisson p_demand and
@@ -243,8 +314,9 @@ end
 %% Run ADP Sample Backward Induction algorithm
 if any(strcmpi('sbi', varargin)) || any(strcmpi('adpSBI', varargin))
     multi_inv_problem_sbi = multi_inv_problem;
+
     tic
-    results = adpSBI(multi_inv_problem_sbi);
+    results = adpSBI(multi_inv_problem_sbi, sbi_opt);
     toc
     %TODO: display summary
     return

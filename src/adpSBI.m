@@ -541,13 +541,13 @@ end
 [results.first_decision, decision_contrib, ~, future_val] = ...
     problem.fOptimalDecision(problem, 1, first_state, post_vfun(1), adp_opt.vfun_approx_params);
 
-results.objective = decision_contrib + (1-problem.discount_rate) * future_val;
+results.objective = decision_contrib + future_val;
 results.post_vfun = post_vfun;
 results.adp_opt = adp_opt;
 
-if adp_opt.verbose && not(0 == mod(adp_opt.sbi_state_samples_per_time(1), adp_opt.verbose * 50))
-    fprintf('%d\n',adp_opt.sbi_state_samples_per_time(1))
-end
+% if adp_opt.verbose && not(0 == mod(adp_opt.sbi_state_samples_per_time(1), adp_opt.verbose * 50))
+%     fprintf('%d\n',adp_opt.sbi_state_samples_per_time(1))
+% end
 
 %% ===== Clean-up =====
 %Reset Auto-parallel state

@@ -10,6 +10,7 @@ function [decision, dec_contrib, post_state, forward_val] = ...
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   8  2017-04-26 22:13  BryanP      Updated parameter order in fDecisionSet 
 %   7  2017-04-02 07:03  BryanP      Updated for standard problem definition 
 %   6  2016-04-15 02:03  BryanP      Error checks for missing fields
 %   5  2012-07-06 16:55  BryanP      Added time to PostToVfun calls
@@ -23,7 +24,7 @@ function [decision, dec_contrib, post_state, forward_val] = ...
     end
 
     %Extract list of all possible decisions
-    decision_set = problem.fDecisionSet(problem.params, pre_state, t);
+    decision_set = problem.fDecisionSet(problem.params, t, pre_state);
     decision_list = decision_set.as_array();
     
     %Compute corresponding costs
