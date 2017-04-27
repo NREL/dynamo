@@ -211,7 +211,7 @@ classdef rpDiscreteSample < RandProcess
             for samp_idx = 1:N
                 idx_at_t(samp_idx) = find(rand(1) <= obj.CdfList{t}, 1, 'first');
             end
-            state_list = obj.Vlist{t}(idx_at_t,:);
+            state_list = obj.Vlist{t}(:, idx_at_t);
         end
 
         %% ===== Support for discrete usage
