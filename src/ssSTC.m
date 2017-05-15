@@ -1,4 +1,4 @@
-function step = ssSTC(n, old_step, param)
+function step = ssSTC(n, old_step, param) %#ok<INUSL>
 %SSSTC Recursive Regression search-then-converge Step Size Rule
 %
 % Search than Converge (STC) allows tuning both the early and late
@@ -27,15 +27,16 @@ function step = ssSTC(n, old_step, param)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
-%   1  2010-11-04 09:40  BryanP      Initial Code
-%   2  2011-03-14 17:40  BryanP      Adapted to handle vectors of n
-%   3  2011-03-15 10:15  BryanP      Corrected formula to start with n=1 and handle basecase
-%   4  2011-03-15 10:30  BryanP      Expanded comments
+%   6  2017-05-01 16:12  BryanP      BUGFIX: initialize step properly
 %   5  2012-01-02 16:30  BryanP      Always start with step = 1 at n=1
+%   4  2011-03-15 10:30  BryanP      Expanded comments
+%   3  2011-03-15 10:15  BryanP      Corrected formula to start with n=1 and handle basecase
+%   2  2011-03-14 17:40  BryanP      Adapted to handle vectors of n
+%   1  2010-11-04 09:40  BryanP      Initial Code
 
-%handle any n=1
-valid_idx = n==1;
-step(valid_idx) = 1;
+step = ones(size(n));
+
+%Note: we already have step = 1 to handle any n=1
 
 %and any n=2
 if param.step2 ~= 1
