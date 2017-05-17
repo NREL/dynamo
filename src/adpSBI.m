@@ -40,6 +40,7 @@ function results = adpSBI(problem, adp_opt, post_vfun)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  28  2017-05-17 00:56  BryanP      BUGFIX: full vector of zeros when mapping afterdecision ops costs for unique states 
 %  27  2017-04-09 22:36  BryanP      Oops, Added support for fOpsBeforeDecision. 
 %  26  2017-04-03 11:12  BryanP      Working with new problem structure 
 %  25  2017-04-02 06:00  BryanP      Made unique state collapse for ops costs optional and clean-up operations cost handling 
@@ -345,7 +346,7 @@ for t = problem.n_periods:-1:1
         after_decision_ops = problem.fOpsAfterDecision(params_only, t, ...
             post_state_list, decision_list);
     else
-        after_decision_ops = 0;
+        after_decision_ops = zeros(size(post_state_list,1),1);
     end
 
     % Rebuild full lists if needed
