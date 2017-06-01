@@ -20,8 +20,9 @@ classdef faDiscrete < FuncApprox
 % 0.4  2011-03-24 15:45  BryanP      Extracted mat2ind for general use
 % 0.5  2011-03-24 20:31  BryanP      Further debugs & new copy() method
 % 0.6  2011-03-25 18:21  BryanP      Added raw() method
-%   7  2012-03-25 15:45  BryanP      Overhauled for FuncApprox v4 
-%   8  2016-04-25 13:29  HongyuW     To accomodate the new FuncApprox 
+% 0.7  2012-03-25 15:45  BryanP      Overhauled for FuncApprox v4 
+% 0.8  2016-04-25 13:29  HongyuW     To accomodate the new FuncApprox
+% 0.9  2017-06-01 10:15  NicolasG    Update bug fix (python backporting)
 
 %     properties (Access=protected)
 %         %Value and meta-data storage as a collection of n-D arrays
@@ -111,8 +112,8 @@ classdef faDiscrete < FuncApprox
             never_visted_mask = (obj.Count(idx) == 0);
             
             %Following code makes sure we do not update the stepsize
-            %of points we previously stored but did not observe on the
-            %current update (Nicolas-06/01/
+            %of points we previously stored but do not observe on the
+            %current update (Nicolas-06/01/2017)
             if nargin>=1
                new_points=varargin{1};
                vals=[];
@@ -128,7 +129,9 @@ classdef faDiscrete < FuncApprox
                 obj.Step(idx) = obj.step_size_fn(obj.Count(idx), obj.Step(idx), obj.Step_opt);
 
                 vals = obj.NewVals;
-           end
+            end
+           %End of modifications (Nicolas-01/06/2017)
+            
            % Put a valid number in all never_visited_mask points to
            % following math will work without NaNs
            obj.Value(idx(never_visted_mask)) = 0;
@@ -143,7 +146,8 @@ classdef faDiscrete < FuncApprox
            end
                         
         end
-
+        
+        
         function out_vals = do_approx(obj, out_pts, varargin)             
 
             % Find linear indicies from the state list

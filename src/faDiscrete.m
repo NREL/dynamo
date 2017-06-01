@@ -23,6 +23,7 @@ classdef faDiscrete < FuncApprox
 % 0.7  2012-03-25 15:45  BryanP      Overhauled for FuncApprox v4 
 % 0.8  2016-04-25 13:29  HongyuW     To accomodate the new FuncApprox
 % 0.9  2017-06-01 10:15  NicolasG    Update bug fix (python backporting)
+% 1.0  2017-06-01 14:30  NicolasG    Handle duplicate points in update (python backporting)
 
 %     properties (Access=protected)
 %         %Value and meta-data storage as a collection of n-D arrays
@@ -146,7 +147,8 @@ classdef faDiscrete < FuncApprox
            end
                         
         end
-
+        
+       
         function out_vals = do_approx(obj, out_pts, varargin)             
 
             % Find linear indicies from the state list
@@ -168,6 +170,36 @@ classdef faDiscrete < FuncApprox
     end
     
     methods
+        
+        function out_vals=update(obj, pts, vals, varargin)
+            %Update function for faDiscrete
+            %Acts as a wrapper around super class update method
+            %The purpose is to handle duplicate points in update queries
+            %by splitting the initial query in multiple subqueries without
+            %duplicates.
+            %See duplicate_row_count.m and update_scheduler.m
+            %Nicolas - 06/01/2017
+            
+            %Call update_scheduler to break in subqueries
+            [p_list, v_list]=update_scheduler(pts, vals); 
+            
+            %Get the number of subqueries
+            n_queries=size(p_list,2);
+            
+            %If that number is equals to one, there is no
+            %duplicates. We can call the super class update
+            %method the the original arguments
+            if n_queries==1
+                out_vals=update@FuncApprox(obj, pts, vals);
+            %Otherwise, there are duplicates in the original query
+            else
+                %For each subquery, call the super class update method
+                for query_idx=1:n_queries
+                    out_vals=update@FuncApprox(obj, p_list{query_idx}, v_list{query_idx});
+                end
+            end
+        end
+
        
         function test(obj)
            
