@@ -24,7 +24,6 @@ classdef FuncApprox < handle & matlab.mixin.Copyable
 %  10  2012-05-07 16:25  BryanP      PLOT: major expansion: 3-D data, plot2D(), level curves
 %  11  2012-05-07 22:15  BryanP      (re)build approx before plot if required
 %  12  2012-06-04 22:15  BryanP      Added lattice of subplots for 4&5-D
-%  13  2017-06-01 10:15  NicolasG    Update bug fix (python backporting)
 
     properties
         Name = '';          %optional name for identifying the name/usage
@@ -172,7 +171,7 @@ classdef FuncApprox < handle & matlab.mixin.Copyable
             
             %if resulting values are requested, use approx to find them
             if nargout > 0
-                out_vals = obj.approx(pts, vals);
+                out_vals = obj.approx(pts);
             end
         end
 
@@ -188,18 +187,9 @@ classdef FuncApprox < handle & matlab.mixin.Copyable
                     error('ADP:FuncApprox:NoData', 'No data points, add data with update() before calling approx()')
                 end
                 
-                
-                %Following code makes sure we do not update the stepsize
-                %of points we previously stored but do not observe on the
-                %current update (Nicolas-06/01/2017)
                 if nargin>=2
-                    vals=varargin{1};
-                    obj.build_func(out_pts, vals);
-                else
-                    obj.build_func(out_pts);
-                end
-                %End of modifications (Nicolas-01/06/2017)
-    
+                obj.build_func()
+
                 obj.RefreshIsRequired = false;
             end
             if size(out_pts,2) ~= obj.N_PtDim
