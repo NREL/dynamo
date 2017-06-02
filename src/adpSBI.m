@@ -407,7 +407,7 @@ for t = problem.n_periods:-1:1
         after_random_ops = problem.fOpsAfterRandom(params_only, t, ...
             next_pre_list, decision_list_for_pre, uncertainty_list);
     else
-        after_random_ops = zeros(size(uncertainy_list, 1), 1);
+        after_random_ops = zeros(size(uncertainty_list, 1), 1);
     end
     
     
