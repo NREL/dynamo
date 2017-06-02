@@ -40,6 +40,7 @@ function results = adpSBI(problem, adp_opt, post_vfun)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  29  2017-06-01 22:17  BryanP      BUGFIX: use full vector of zeros for all assignments for unspecified functions 
 %  28  2017-05-17 00:56  BryanP      BUGFIX: full vector of zeros when mapping afterdecision ops costs for unique states 
 %  27  2017-04-09 22:36  BryanP      Oops, Added support for fOpsBeforeDecision. 
 %  26  2017-04-03 11:12  BryanP      Working with new problem structure 
@@ -372,6 +373,7 @@ for t = problem.n_periods:-1:1
         %>>>     sample uncertainty and store change
         % Sample Random outcomes to get to next pre-states
         uncertainty_list{post_idx} = fn_random_sample(t, rand_per_post_state); %#ok<PFBNS>, because OK to broadcast reduced fn_* variable
+        n_uncertainty = size(uncertainty_list{post_idx},1);
         next_pre_list{post_idx} = fn_random_apply(params_only, t, this_post_state, uncertainty_list{post_idx});  %#ok<PFBNS>
         decision_list_for_pre{post_idx} = repmat(decision_list(post_idx, :), size(uncertainty_list{post_idx}, 1), 1);
 
@@ -379,7 +381,7 @@ for t = problem.n_periods:-1:1
         if not(isempty(fn_random_cost))
             uncertainty_contrib{post_idx} = fn_random_cost(params_only, t, this_post_state, uncertainty_list{post_idx});
         else
-            uncertainty_contrib{post_idx} = 0;
+            uncertainty_contrib{post_idx} = zeros(n_uncertainty, 1);
         end
     end
     
@@ -405,7 +407,7 @@ for t = problem.n_periods:-1:1
         after_random_ops = problem.fOpsAfterRandom(params_only, t, ...
             next_pre_list, decision_list_for_pre, uncertainty_list);
     else
-        after_random_ops = 0;
+        after_random_ops = zeros(size(uncertainy_list, 1), 1);
     end
     
     

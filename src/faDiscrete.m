@@ -14,16 +14,16 @@ classdef faDiscrete < FuncApprox
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
-% 0.1  2011-03-17 19:20  BryanP      Initial Version
-% 0.2  2011-03-24 12:21  BryanP      Debug multiple state indexing
-% 0.3  2011-03-24 13:45  BryanP      It works! (based on manual checking)
-% 0.4  2011-03-24 15:45  BryanP      Extracted mat2ind for general use
-% 0.5  2011-03-24 20:31  BryanP      Further debugs & new copy() method
-% 0.6  2011-03-25 18:21  BryanP      Added raw() method
-% 0.7  2012-03-25 15:45  BryanP      Overhauled for FuncApprox v4 
-% 0.8  2016-04-25 13:29  HongyuW     To accomodate the new FuncApprox
-% 0.9  2017-06-01 10:15  NicolasG    Update bug fix (python backporting)
-% 1.0  2017-06-01 14:30  NicolasG    Handle duplicate points in update (python backporting)
+%  10  2017-06-01 14:30  NicolasG    Handle duplicate points in update (python backporting)
+%   9  2017-06-01 10:15  NicolasG    Update bug fix (python backporting)
+%   8  2016-04-25 13:29  HongyuW     To accomodate the new FuncApprox
+%   7  2012-03-25 15:45  BryanP      Overhauled for FuncApprox v4 
+%   6  2011-03-25 18:21  BryanP      Added raw() method
+%   5  2011-03-24 20:31  BryanP      Further debugs & new copy() method
+%   4  2011-03-24 15:45  BryanP      Extracted mat2ind for general use
+%   3  2011-03-24 13:45  BryanP      It works! (based on manual checking)
+%   2  2011-03-24 12:21  BryanP      Debug multiple state indexing
+%   1  2011-03-17 19:20  BryanP      Initial Version
 
 %     properties (Access=protected)
 %         %Value and meta-data storage as a collection of n-D arrays
