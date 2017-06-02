@@ -10,21 +10,22 @@ classdef FuncApprox < handle & matlab.mixin.Copyable
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
-% 0.1  2011-03-17 07:20  BryanP      Initial Version
-% 0.2  2011-03-24 20:33  BryanP      Implemented a basic copy method
-% 0.3  2011-03-25 18:21  BryanP      Added raw() method
+%  14  2017-06-01 22:40  BryanP      reverting incompatible changes and expanding comments to explain 
+%  13  2017-06-01 10:15  NicolasG    Update bug fix (python backporting)
+%  12  2012-06-04 22:15  BryanP      Added lattice of subplots for 4&5-D
+%  11  2012-05-07 22:15  BryanP      (re)build approx before plot if required
+%  10  2012-05-07 16:25  BryanP      PLOT: major expansion: 3-D data, plot2D(), level curves
+%   9  2012-05-07 12:05  BryanP      Added plot1D() method
+%   8  2012-05-07 11:22  BryanP      Added point dimension names property
+%   7  2012-04-22 15:25  BryanP      Added ValRange
+%   6  2012-03-29 15:15  BryanP      Renamed RawPts to StorePts, Added separate N_RawPts counter
+%   5  2012-03-25 22:15  BryanP      Expanded to include core functionality from faThinPlate v1 in superclass
 %   4  2012-03-25 15:21  BryanP      Streamlined:
 %                                       -- rename access() to approx() to match Curve FItting Toolbox
 %                                       -- Remove max(), maxScaledSum(), & step* properties
-%   5  2012-03-25 22:15  BryanP      Expanded to include core functionality from faThinPlate v1 in superclass
-%   6  2012-03-29 15:15  BryanP      Renamed RawPts to StorePts, Added separate N_RawPts counter
-%   7  2012-04-22 15:25  BryanP      Added ValRange
-%   8  2012-05-07 11:22  BryanP      Added point dimension names property
-%   9  2012-05-07 12:05  BryanP      Added plot1D() method
-%  10  2012-05-07 16:25  BryanP      PLOT: major expansion: 3-D data, plot2D(), level curves
-%  11  2012-05-07 22:15  BryanP      (re)build approx before plot if required
-%  12  2012-06-04 22:15  BryanP      Added lattice of subplots for 4&5-D
-%  13  2017-06-01 10:15  NicolasG    Update bug fix (python backporting)
+% 0.3  2011-03-25 18:21  BryanP      Added raw() method
+% 0.2  2011-03-24 20:33  BryanP      Implemented a basic copy method
+% 0.1  2011-03-17 07:20  BryanP      Initial Version
 
     properties
         Name = '';          %optional name for identifying the name/usage
@@ -171,8 +172,10 @@ classdef FuncApprox < handle & matlab.mixin.Copyable
             obj.N_RawPts = obj.N_RawPts + pts_size_col_1;
             
             %if resulting values are requested, use approx to find them
+            % Note: the approx function should only specify the desired
+            % output points
             if nargout > 0
-                out_vals = obj.approx(pts, vals);
+                out_vals = obj.approx(pts);
             end
         end
 
@@ -183,22 +186,19 @@ classdef FuncApprox < handle & matlab.mixin.Copyable
         % values = obj.approx(pts)
         %
         % pts: one output point per row
+        %
+        % Note: varargin only provided for compatibility with approximation
+        % specific options. In most use cases it will be blank
             if obj.RefreshIsRequired
                 if obj.N_RawPts == 0
                     error('ADP:FuncApprox:NoData', 'No data points, add data with update() before calling approx()')
                 end
                 
-                
-                %Following code makes sure we do not update the stepsize
-                %of points we previously stored but do not observe on the
-                %current update (Nicolas-06/01/2017)
-                if nargin>=2
-                    vals=varargin{1};
-                    obj.build_func(out_pts, vals);
-                else
-                    obj.build_func(out_pts);
-                end
-                %End of modifications (Nicolas-01/06/2017)
+                %build_func must be defined by the child class and updates
+                %the internal function approximation based on previously
+                %stored values. Since the stored values are managed
+                %separately, the function itself takes no parameters.
+                obj.build_func();
     
                 obj.RefreshIsRequired = false;
             end

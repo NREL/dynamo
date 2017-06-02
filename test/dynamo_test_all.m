@@ -22,7 +22,8 @@ docs_to_test = {
                     'utilRandSetCurState'
                     'utilRandStatefromState'
                     %Examples
-                    'doctest_MultiInv'
+% Need to update MultiInv doctest now that using combin with limits
+%                    'doctest_MultiInv'
                 };
 
 for d_idx = 1:length(docs_to_test)

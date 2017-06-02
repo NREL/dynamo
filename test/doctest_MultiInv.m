@@ -17,7 +17,7 @@
 %
 %% ===== Fix rand for repeatable results & Setup the problem =====
 % >> rng('default')
-% >> multi_inv_problem = MultiInv_demo('small');
+% >> multi_inv_problem = MultiInv_demo('med');
 % >> t = 1;
 % >> test_pre_state = multi_inv_problem.state_set{t}.sample()
 % 
