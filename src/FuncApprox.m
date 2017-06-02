@@ -200,8 +200,11 @@ classdef FuncApprox < handle & matlab.mixin.Copyable
                 %separately, the function itself takes no parameters.
                 obj.build_func();
                 
-                %Nicolas:OK. I added the following line such
-                %that NewPts is refreshed before the next update
+                %The following line ensures that NewPts is refreshed before
+                %the next update. In many cases a subclass will have
+                %already called this fuction as part of build_func, but
+                %this ensures we have cleaned up the point and value lists
+                %in case it is not otherwise done.
                 obj.merge_new_pts();
     
                 obj.RefreshIsRequired = false;
