@@ -199,6 +199,10 @@ classdef FuncApprox < handle & matlab.mixin.Copyable
                 %stored values. Since the stored values are managed
                 %separately, the function itself takes no parameters.
                 obj.build_func();
+                
+                %Nicolas:OK. I added the following line such
+                %that NewPts is refreshed before the next update
+                obj.merge_new_pts();
     
                 obj.RefreshIsRequired = false;
             end

@@ -111,27 +111,9 @@ classdef faDiscrete < FuncApprox
             % TODO : Check for duplicates in idx
             
             never_visted_mask = (obj.Count(idx) == 0);
-            
-            %Following code makes sure we do not update the stepsize
-            %of points we previously stored but do not observe on the
-            %current update (Nicolas-06/01/2017)
-            if nargin>=1
-               new_points=varargin{1};
-               vals=[];
-               if nargin>=2
-                   vals= varargin{2};
-               end
-               idx=mat2ind(obj.max_size_per_dim, new_points);
-               never_visted_mask = (obj.Count(idx) == 0);
-               obj.Count(idx) = 1 + obj.Count(idx);
-               obj.Step(idx) = obj.step_size_fn(obj.Count(idx), obj.Step(idx), obj.Step_opt);
-            else
-                obj.Count(idx) = 1 + obj.Count(idx);
-                obj.Step(idx) = obj.step_size_fn(obj.Count(idx), obj.Step(idx), obj.Step_opt);
-
-                vals = obj.NewVals;
-            end
-           %End of modifications (Nicolas-01/06/2017)
+            obj.Count(idx) = 1 + obj.Count(idx);
+            obj.Step(idx) = obj.step_size_fn(obj.Count(idx), obj.Step(idx), obj.Step_opt);
+            vals = obj.NewVals;
             
            % Put a valid number in all never_visited_mask points to
            % following math will work without NaNs
