@@ -22,10 +22,11 @@ function [multi_inv_problem, results] = MultiInv_demo(varargin)
 %   Run sampled backward induction ADP algorithm on example MultiInv problem
 %
 %
-% Test using the small case and pre-computed optimal policy:
-% >> small_opt_policy = {[0,0]		[2,4]	[2,4]	[1,2]; [0,1]		[2,3]	[2,3]	[0,0]; [0,2]		[2,2]	[2,2]	[0,0];  [0,3]		[2,1]	[0,0]	[0,0] ; [0,4]		[2,0]	[2,0]	[0,0] ; [0,5]		[2,0]	[2,0]	[0,0] ; [0,6]		[0,0]	[0,0]	[0,0];  [1,0]		[1,4]	[1,4]	[0,2] ; [1,1]		[1,3]	[1,3]	[0,0]; [1,2]		[0,0]	[0,0]	[0,0] }; 
+% %% Test DP algorithm using the small case and pre-computed optimal policy:
+% >> small_opt_policy_cell = {[0,0]		[2,4]	[2,4]	[1,2]; [0,1]		[2,3]	[2,3]	[0,0]; [0,2]		[2,2]	[2,2]	[0,0];  [0,3]		[2,1]	[0,0]	[0,0] ; [0,4]		[2,0]	[2,0]	[0,0] ; [0,5]		[2,0]	[2,0]	[0,0] ; [0,6]		[0,0]	[0,0]	[0,0];  [1,0]		[1,4]	[1,4]	[0,2] ; [1,1]		[1,3]	[1,3]	[0,0]; [1,2]		[0,0]	[0,0]	[0,0] }; 
+%
 % >> small_opt_value = 'TODO';
-% >> [small_prob, small_result] = MultiInv_demo('small', 'dp');
+% >> [small_prob, small_dp_result] = MultiInv_demo('small', 'dp');
 %     Backward Induction DP
 %         T=4 (terminal period): Done
 %         T=3:Done: 44 states
@@ -33,11 +34,40 @@ function [multi_inv_problem, results] = MultiInv_demo(varargin)
 %         T=1:Done: 44 states
 %     Elapsed time is *** seconds.
 %
-% >> small_policy = cell2mat(small_result.dpbi_policy);
-% >> small_opt_policy = cell2mat(small_opt_policy);
-% >> isequal(small_opt_policy(:, 3:end), small_policy(1:10,:))
+% >> small_dp_policy = cell2mat(small_dp_result.dpbi_policy);
+% >> small_opt_policy = cell2mat(small_opt_policy_cell);
+% >> isequal(small_opt_policy(:, 3:end), small_dp_policy(1:10,:))
 %    ans = 
 %         1
+%
+%
+% %% And test adpSBI algorithm using small case:
+% >> rng('default')
+% >> [~, small_sbi_result] = MultiInv_demo('small', 'sbi');
+% Sampled Backward Induction ([0.1] ksamples/period)
+%     Creating empty post-decision value functions (LocalRegr)
+%     T=4 (terminal period): Done
+%     T=3:S........................................100
+%     T=2:S........................................100
+%     T=1:S........................................100
+% Warning: Multiple initial states defined, using first in list 
+% > In adpSBI (line 540)
+%   **** 
+% Elapsed time is *** seconds.
+% >> small_sbi_result
+% 
+% small_sbi_result = 
+% 
+%     first_decision: [2 4]
+%          objective: 16.1959
+%          post_vfun: [1x4 faLocalRegr]
+%            adp_opt: [1x1 struct]
+% >> isequal(small_sbi_result.first_decision, small_opt_policy_cell{1,2})
+% 
+% ans =
+% 
+%      1
+
 
 % HISTORY
 % ver     date    time       who     changes made
@@ -199,6 +229,8 @@ else
     % MultiInvDP_scratchpad "small" case in ~0.5sec on MacBook Pro mid-2014
     % model
     %
+    % Note: does not run when using doctest
+    %
     % Optimal Solution (top 10 entries)
     % >> small_opt_policy = {
     % % state    t= 1       2       3
@@ -235,7 +267,7 @@ else
                         'sales_price'       8       % Sales price per unit. If scalar, assumes same cost for all products
                      };    
 
-    sbi_opt = { 'sbi_state_samples_per_time'            150    % Number of state samples per time period
+    sbi_opt = { 'sbi_state_samples_per_time'           100    % Number of state samples per time period
                 'sbi_decisions_per_sample'              20     % Number of decision samples per state
                 'sbi_uncertain_samples_per_post'        10     % Number of random/uncertainty samples per time, used for all decisions
                 
@@ -346,182 +378,3 @@ if any(strcmpi('td1', varargin)) || any(strcmpi('adpTD1', varargin))
     return
 end
 
-
-% Old cruft below here. Could be starting point for other sized 
-
-% %% ---- Single Item Treated as Multi Inventory
-% % Common problem parameters
-% max_space = 3;
-% item_space = [1]; %#ok<NBRAK>
-% n_periods = 4;
-% p_demand = [0.1, 0.2, 0.4, 0.3]; % This is the probability for 0:n units of demand
-% disc_rate = 0;
-%
-% % Pure single item DP for comparision
-% fprintf('\nStarting simple single product inventory...')
-% tic
-% [simple_orders, simple_values] = inventory_dp(max_space, n_periods, p_demand, disc_rate)
-% toc
-%
-% %% dummy "Multi-product" with only a single DP example "super simple single product case as multi-product"
-% % Note: the results should match the results above... and they do!
-%
-% fprintf('\nStarting MultiInv framework for the same single product example...')
-% simplemulti_params=MultiInvInit(max_space, item_space, {p_demand});
-%
-% tic
-% [simplemulti_orders, simplemulti_values] = DP(n_periods, disc_rate, ...
-%     @MultiInvState, @MultiInvDecision, @MultiInvTermValue, @MultiInvCost, ...
-%     @MultiInvTransProb, simplemulti_params)
-% toc
-%
-% %% Now run same single item problem as ADP
-%
-% % %For now comment out while waiting for 1-D function approx to be available
-% %
-% % %Setup basic problem structure
-% % simple_adp = MultiInvInit(max_inv, item_space, {p_demand});
-% % simple_adp.n_periods = n_periods;
-% % simple_adp.disc_rate = disc_rate;
-% % % Only needed for adpSBI simple_prob.dyn_var = rpDiscreteSample();
-% % simple_adp.first_state = [0]; %#ok<NBRAK>
-% %
-% % Adapt other options for 2-D case below
-%
-% %% ---- Small Two Item Multi Inventory ---
-% % Note this is a multi product inventory model with storage space
-% % constraints and independent poisson demands.
-%
-% %% DP for Small 2-item
-%
-% max_space = 6;
-% item_space = [2 3];
-% p_demand = [1 2]; % Note, scalar per product treated as poisson lambda values
-% n_periods = 3;
-% disc_rate = 0.1;
-%
-% %Setup problem
-% multi2_params=MultiInvInit(max_space, item_space, p_demand);
-%
-% fprintf('\nStarting small 2 product case...\n')
-% tic
-% [multi2_orders, multi2_values] = DP(n_periods, disc_rate, ...
-%     @MultiInvState, @MultiInvDecision, @MultiInvTermValue, @MultiInvCost, ...
-%     @MultiInvTransProb, multi2_params, 50)
-% toc
-%
-% %% ADP (TD1) for small 2-item
-%
-% %Setup basic problem structure
-% multi2_adp = MultiInvInit(max_space, item_space, p_demand);
-% multi2_adp.n_periods = n_periods;
-% multi2_adp.disc_rate = disc_rate;
-% % Only needed for adpSBI simple_prob.dyn_var = rpDiscreteSample();
-% multi2_adp.first_state = [0 0];
-%
-% % Define dimensions
-% multi2_adp.dims.pre_state = length(item_space);
-% multi2_adp.dims.post_state = length(item_space);
-% multi2_adp.dims.vfun_state = length(item_space);
-% multi2_adp.dims.decision = length(item_space);
-%
-% % Setup required functions
-% multi2_adp.fSim = @MultiInvSim;
-% multi2_adp.fApplyDscn = @MultiInvApplyDecision;
-% multi2_adp.fDecision = @MultiInvDecisionList;
-% multi2_adp.fFirstState = @MultiInvFirstState;
-%
-% %Setup state randomizers for bootstrap
-% multi2_adp.rand.state = rpDiscreteSample({MultiInvState('all', [], multi2_adp)});
-% multi2_adp.rand.decision = @MultiInvDecisionSample;
-%
-% % Now setup ADP options
-% % WARNING: The current version of faInterp does not effectively support
-% % machine learning needs.
-% adp_opts = {
-%                 'vfun_approx'           'Interp'
-%                 'boot_iter_per_t'       5
-%                 'boot_sample_state'     true
-%                 'boot_enable_full_sim'  false
-%                 'max_iter'              500
-%                 'explore_iter'          100
-%                 'bkps_use_updated_vfun' false
-%                 'bkps_abort'            true
-%                 'fix_rand'              true
-%            };
-%
-%
-% % Finally Run ADP
-% tic
-% multi2_adp_results = adpTD1(multi2_adp, adp_opts)
-% toc
-%
-% %% ---- Medium: still small enough to solve with DP ---
-% % Note this is a multi product inventory model with storage space
-% % constraints and independent poisson demands.
-%
-% %% DP for Medium 3-item
-%
-% max_space = 50;
-% item_space = [1 3 5];
-% p_demand = [30 10 5]; % Note, scalar per product treated as poisson lambda values
-% n_periods = 3;
-% disc_rate = 0.1;
-%
-% %Setup problem
-% fprintf('\nSetting up medium 3 product case...\n')
-% tic
-% med3_params=MultiInvInit(max_space, item_space, p_demand);
-% toc
-%
-% fprintf('\nStarting medium 3 product case...\n')
-% tic
-% [med3_orders, med3_values] = DP(n_periods, disc_rate, ...
-%     @MultiInvState, @MultiInvDecision, @MultiInvTermValue, @MultiInvCost, ...
-%     @MultiInvTransProb, med3_params, 50)
-% toc
-%
-% %% ADP (TD1) for medium 3-item
-%
-% %Setup basic problem structure (building off of previous setup which can be
-% %very slow for such large problems
-% med3_adp = med3_params;
-% med3_adp.n_periods = n_periods;
-% med3_adp.disc_rate = disc_rate;
-% % Only needed for adpSBI simple_prob.dyn_var = rpDiscreteSample();
-%
-% % Define dimensions
-% med3_adp.dims.pre_state = length(item_space);
-% med3_adp.dims.post_state = length(item_space);
-% med3_adp.dims.vfun_state = length(item_space);
-% med3_adp.dims.decision = length(item_space);
-% med3_adp.first_state = zeros(1, med3_adp.dims.pre_state) ;
-%
-% % Setup required functions
-% med3_adp.fSim = @MultiInvSim;
-% med3_adp.fApplyDscn = @MultiInvApplyDecision;
-% med3_adp.fDecision = @MultiInvDecisionList;
-% med3_adp.fFirstState = @MultiInvFirstState;
-%
-% %Setup state randomizers for bootstrap
-% med3_adp.rand.state = rpDiscreteSample({MultiInvState('all', [], med3_adp)});
-% med3_adp.rand.decision = @MultiInvDecisionSample;
-%
-% % Now setup ADP options
-% % WARNING: The current version of faInterp does not effectively support
-% % machine learning needs.
-% adp_opts = {
-%                 'vfun_approx'           'Interp'
-%                 'boot_iter_per_t'       50
-%                 'boot_sample_state'     true
-%                 'boot_enable_full_sim'  false
-%                 'max_iter'              1e10    %Let time limit be binding
-%                 'max_time_sec'          300
-%                 'explore_iter'          100
-%                 'bkps_use_updated_vfun' false
-%                 'bkps_abort'            true
-%                 'fix_rand'              true
-%            };
-%
-%
-% med3_adp_results = adpTD1(med3_adp, adp_opts)

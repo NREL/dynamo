@@ -5,6 +5,8 @@ function dynamo_test_all
 %  IMPORTANT: MATLAB changed their output formatting in R2016b for all
 %  non-double array displays. as a result many of these doctests will not
 %  work. 
+% 
+%  Note: `example/multi_inventory` needs to be in the path
 
 % Warn if using a newer MATLAB than R2016a. Note version 9.1 = R2016b
 if not(verLessThan('matlab','9.1'))
@@ -22,8 +24,8 @@ docs_to_test = {
                     'utilRandSetCurState'
                     'utilRandStatefromState'
                     %Examples
-% Need to update MultiInv doctest now that using combin with limits
-%                    'doctest_MultiInv'
+                    'doctest_MultiInv'
+                    'MultiInv_demo'
                 };
 
 for d_idx = 1:length(docs_to_test)
