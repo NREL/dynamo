@@ -22,7 +22,7 @@ function [multi_inv_problem, results] = MultiInv_demo(varargin)
 %   Run sampled backward induction ADP algorithm on example MultiInv problem
 %
 %
-% %% Test DP algorithm using the small case and pre-computed optimal policy:
+% %% Test DP algorithm using the small case and compare to pre-computed optimal policy:
 % >> small_opt_policy_cell = {[0,0]		[2,4]	[2,4]	[1,2]; [0,1]		[2,3]	[2,3]	[0,0]; [0,2]		[2,2]	[2,2]	[0,0];  [0,3]		[2,1]	[0,0]	[0,0] ; [0,4]		[2,0]	[2,0]	[0,0] ; [0,5]		[2,0]	[2,0]	[0,0] ; [0,6]		[0,0]	[0,0]	[0,0];  [1,0]		[1,4]	[1,4]	[0,2] ; [1,1]		[1,3]	[1,3]	[0,0]; [1,2]		[0,0]	[0,0]	[0,0] }; 
 %
 % >> small_opt_value = 'TODO';
