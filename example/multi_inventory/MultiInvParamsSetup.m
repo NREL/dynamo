@@ -1,9 +1,23 @@
 function params = MultiInvParamsSetup(params_in)
-% MULTIINVPARAMSSETUP Manage defaults and othe manipulations for
+% MULTIINVPARAMSSETUP Manage parameter defaults and othe manipulations for
 % Multi-Inventory problems.
+%
+% params = MultiInvParamsSetup()
+%    Setups a complete multi-inventory problem-specific parameter
+%    structure using all default settings. In addition to raw parameter
+%    settings, scalar values are converted to vectors as needed, and
+%    probabilities are autodefined if not specified.
+%
+% params = MultiInvParamsSetup(params_in)
+%    Enables selectively overwriting of defaults by specifying one or more
+%    alternate parameter settings as a structure or name-value paired cell
+%    array.
+%
+% 
+% See also: MultiInvProblemSetup
 
 % Implementation Notes:
-%  - Structures are generallypassed by reference, so there is minimal
+%  - Structures are generally passed by reference, so there is minimal
 %    overhead in passing the large multi_inv_prob structure around between
 %    functions. for more details see:
 %    http://www.mathworks.com/support/solutions/en/data/1-15SO4/index.html?solution=1-15SO4
@@ -11,6 +25,7 @@ function params = MultiInvParamsSetup(params_in)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   6  2017-06-14 05:08  BryanP      Expanded documentation 
 %   5  2017-04-26 17:32  BryanP      Add support for single item 
 %   4  2016-10-21 16:55  BryanP      Bug fix: handle vector values in checks for cost parameters 
 %   3  2016-10-07 01:24  BryanP      Bug fix: actually pass poisson probability vectors to p_demand 
