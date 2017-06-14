@@ -23,10 +23,13 @@ function [cache_par_auto, ps] = utilParSetup(adp_opt)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   2  2017-06-14 04:43  BryanP      BUGFIX: asign all outputs even in parallel off 
 %   1  2017-03-04 23:13  BryanP      Adapted from adpSBI1 v23
 
-
+%Ensure we always have valid returns
 cache_par_auto = [];
+ps = [];
+
 if exist('parallel', 'dir')
     try
         ps = parallel.Settings;

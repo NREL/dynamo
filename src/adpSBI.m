@@ -3,43 +3,21 @@ function results = adpSBI(problem, adp_opt, post_vfun)
 %
 % results = adpSBI(problem, adp_opt, post_vfun)
 %
+% Updated for dynamo problem definition structure
+% 
 % Notes: 
 % -- This method is currently only applicable to problem classes where it is
 % possible to sample the post decision state without requiring a full,
 % simulation derived state (ie it does not work for partially hidden
 % Markov/quasi-Markov processes).
-% -- post_vfun and fn inputs primarily provided for use 
-% 
+% -- post_vfun and fn inputs primarily provided for use as an intialization
+% scheme for other adp functions such as adpTD1
 %
-% Required problem attributes
-%   n_periods
-%   disc_rate
-%   dyn_var list
-%
-% Required problem methods:
-%   preToPost: takes decision list and pre_dec state and returns a list
-%     of post decision states. This also  allows the user to map to a
-%     reduced dimensionality
-%   contrib(state_list, t): not counting decision costs
-%
-% Optional problem methods/functions
-%   pre-dec state sample function
-%   multi-contribution: compute multiple contribution functions at once.
-%     this also allows user to work with a contribution function
-%     approximation
-%
-% Required value function methods
-%   update value function: takes a vector of (value based) states and their
-%     corresponding value
-%
-% Adp options:
-%   Sample function... pure Monte Carlo, hypercube, etc.
-%
-% Required sub-functions:
 
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  30  2017-06-14 04:51  BryanP      Removed confusing old intro documentation (none is hopefully better than wrong) 
 %  29  2017-06-01 22:17  BryanP      BUGFIX: use full vector of zeros for all assignments for unspecified functions 
 %  28  2017-05-17 00:56  BryanP      BUGFIX: full vector of zeros when mapping afterdecision ops costs for unique states 
 %  27  2017-04-09 22:36  BryanP      Oops, Added support for fOpsBeforeDecision. 

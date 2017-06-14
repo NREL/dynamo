@@ -41,6 +41,8 @@ function [options, unused, match_map] = DefaultOpts(opt_in, defaults, varargin)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   9  2017-06-14 06:33  BryanP      BUGFIX add support for nested cell arrays 
+%   8  2017-06-14 06:17  BryanP      BUGFIX when handling single item structs for opt_in 
 %   7  2016-10-06 11:27  BryanP      Renamed to simply DefaultOpts to avoid confusion with set classes based on AbstractSet 
 %   6  2012-06-27 15:55  BryanP      UPDATE: support intial nested struct + additional pairs in a cell array
 %   5  2012-06-26 14:35  BryanP      UPDATE: support for struct nested in a cell array (such as from varargin)
@@ -102,6 +104,9 @@ elseif iscell(opt_in)
                 %Note: this is also our recursive basecase
                 opt_in = opt_in{1};
             end
+        %Or maybe it is a nested structure
+        elseif iscell(opt_in{1})
+            opt_in = opt_in{1};
         else
             %Otherwise we have problems
             error('ADP:DefaultOpts:WrongLength', ...
@@ -109,12 +114,14 @@ elseif iscell(opt_in)
         end
     end
     % (B) convert cell to structure if required
-    %Ensure we have two columns
+    %If here, have to be divisible by 2 so Ensure we have two columns
     if isvector(opt_in) && length(opt_in) > 2
         opt_in = reshape(opt_in,2,[])';
     end
     %Convert to a structure
-    opt_in = cell2struct(opt_in(:,2),opt_in(:,1));
+    if not(isstruct(opt_in))
+        opt_in = cell2struct(opt_in(:,2),opt_in(:,1));
+    end
 elseif not(isstruct(opt_in))
     error('ADP:DefaultOpts:InvalidType', 'opt_in must be a structure, cell, or empty')
 end
