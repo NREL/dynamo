@@ -38,6 +38,7 @@ function [multi_inv_problem, results] = MultiInv_demo(varargin)
 % >> small_opt_policy = cell2mat(small_opt_policy_cell);
 % >> isequal(small_opt_policy(:, 3:end), small_dp_policy(1:10,:))
 %    ans = 
+%         logical
 %         1
 %
 %
@@ -51,21 +52,25 @@ function [multi_inv_problem, results] = MultiInv_demo(varargin)
 %     T=2:S........................................100
 %     T=1:S........................................100
 % Warning: Multiple initial states defined, using first in list 
-% > In adpSBI (line 540)
+% > In adpSBI (line ***)
 %   **** 
 % Elapsed time is *** seconds.
+%
 % >> small_sbi_result
 % 
 % small_sbi_result = 
 % 
+%   struct with fields:
+% 
 %     first_decision: [2 4]
 %          objective: 16.1959
-%          post_vfun: [1x4 faLocalRegr]
-%            adp_opt: [1x1 struct]
+%          post_vfun: [1×4 faLocalRegr]
+%            adp_opt: [1×1 struct]
+% %
 % >> isequal(small_sbi_result.first_decision, small_opt_policy_cell{1,2})
 % 
 % ans =
-% 
+%      logical
 %      1
 
 
@@ -278,7 +283,9 @@ end
 
 % Build up additional derived fields. Also takes poisson p_demand and
 % converts to a pdf in a cell array
-multiinv_params = MultiInvParamsSetup(multiinv_params);
+multiinv_params = MultiInvSetupParams(multiinv_params);
+multi_inv_problem = MultiInvSetupProblem(multiinv_params, ...
+    'disc_rate', multiinv_discount, 'n_periods', multiinv_n_periods);
              
 %% Now that setup is complete, let's run the specified examples
 if nargin < 1

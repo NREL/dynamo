@@ -2,16 +2,14 @@ function params = MultiInvSetupParams(params_in)
 % MULTIINVPARAMSSETUP Manage parameter defaults and othe manipulations for
 % Multi-Inventory problems.
 %
-% params = MultiInvParamsSetup()
-%    Setups a complete multi-inventory problem-specific parameter
-%    structure using all default settings. In addition to raw parameter
-%    settings, scalar values are converted to vectors as needed, and
-%    probabilities are autodefined if not specified.
-%
 % params = MultiInvParamsSetup(params_in)
 %    Enables selectively overwriting of defaults by specifying one or more
 %    alternate parameter settings as a structure or name-value paired cell
-%    array.
+%    array. Required fields:
+%       'total_space'       Max space in warehouse
+%       'unit_space'        Vector with space per item (also sets number of items) 
+%       'p_demand'          Probability per item, poisson if scalar per item, cell with columns otherwise
+
 %
 % 
 % See also: MultiInvProblemSetup
@@ -31,7 +29,6 @@ function params = MultiInvSetupParams(params_in)
 %   3  2016-10-07 01:24  BryanP      Bug fix: actually pass poisson probability vectors to p_demand 
 %   2  2016-10-06 11:24  BryanP      Finished clean-up. Seems to work 
 %   1  2016-10-02        BryanP      extracted and adapted from MultiInvInit v7 
-
 
 %--- Handle defaults
 default_params = { %Warehouse and product space, size, & demand configuration

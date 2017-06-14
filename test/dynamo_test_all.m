@@ -26,6 +26,7 @@ docs_to_test = {
                     %Examples
                     'doctest_MultiInv'
                     'MultiInv_demo'
+                    'MultiInvSetupProblem'
                 };
 
 for d_idx = 1:length(docs_to_test)
