@@ -1,4 +1,4 @@
-function params = MultiInvParamsSetup(params_in)
+function params = MultiInvSetupParams(params_in)
 % MULTIINVPARAMSSETUP Manage parameter defaults and othe manipulations for
 % Multi-Inventory problems.
 %
