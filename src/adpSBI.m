@@ -17,6 +17,7 @@ function results = adpSBI(problem, adp_opt, post_vfun)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  31  2017-06-14 07:13  BryanP      Extract utilSetupVfun 
 %  30  2017-06-14 04:51  BryanP      Removed confusing old intro documentation (none is hopefully better than wrong) 
 %  29  2017-06-01 22:17  BryanP      BUGFIX: use full vector of zeros for all assignments for unspecified functions 
 %  28  2017-05-17 00:56  BryanP      BUGFIX: full vector of zeros when mapping afterdecision ops costs for unique states 
@@ -49,11 +50,15 @@ function results = adpSBI(problem, adp_opt, post_vfun)
 %   1  2012-03-07        BryanP      Pseudo-code
 
 %% ====== Handle Inputs =====
-%--- Handle ADP options
 if nargin < 2 || isempty(adp_opt)
     adp_opt = struct([]);
 end
 
+if nargin < 3 
+    post_vfun = [];
+end
+
+%--- Handle ADP options
 adp_defaults = {
                 %adpSampleBackInd specific settings
                 'sbi_state_samples_per_time'            100     % Number of state samples per time period
@@ -129,39 +134,7 @@ if length(adp_opt.sbi_uncertain_samples_per_post) < problem.n_periods+1
 end
 
 %-- Initialize POST decision value function (or use the one passed in)
-if nargin < 3 || isempty(post_vfun)
-    if adp_opt.verbose
-        fprintf('    Creating empty post-decision value functions (%s)\n', adp_opt.vfun_approx)
-    end
-
-    %Remove "empty post_vfun" to avoid type mismatch issues
-    clear('post_vfun')
-
-    %Setup one post decision value function object per time period
-    vfun_constructor = str2func(['fa' adp_opt.vfun_approx]);
-    for t = 1:problem.n_periods+1
-        % Note place holders for initial point and value lists
-        post_vfun(t) = vfun_constructor([],[], adp_opt.vfun_setup_params{:});
-        
-        % Copy names to value fuction 
-        post_vfun(t).PtDimNames = problem.state_set{t}.pt_dim_names;
-    end
-    
-    %Flag that we are NOT using old_results (post_vfun) in our options structure
-    adp_opt.old_results = false;
-else
-    if adp_opt.verbose
-        fprintf('    Using (copy of) existing post-decision Value Function\n')
-    end
-    %Make a true, local copy of the value function (since they are handle
-    %objects. Otherwise, our additions will effect the stored results)
-    for t_idx = problem.n_periods+1:-1:1
-        post_vfun(t_idx) = copy(post_vfun(t_idx));
-    end
-
-    %Flag that we are using old_results (post_vfun) in our options structure
-    adp_opt.old_results = true;
-end
+[post_vfun, adp_opt] = utilSetupVfun(problem, adp_opt, post_vfun);
 
 %-- Determine the dimensions (length) for states
 ndim.pre = zeros(1, problem.n_periods+1);

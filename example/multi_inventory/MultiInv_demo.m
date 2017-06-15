@@ -285,7 +285,7 @@ end
 % converts to a pdf in a cell array
 multiinv_params = MultiInvSetupParams(multiinv_params);
 multi_inv_problem = MultiInvSetupProblem(multiinv_params, ...
-    'disc_rate', multiinv_discount, 'n_periods', multiinv_n_periods);
+    'discount_rate', multiinv_discount, 'n_periods', multiinv_n_periods);
              
 %% Now that setup is complete, let's run the specified examples
 if nargin < 1
