@@ -1,4 +1,4 @@
-function results = adpTD1(problem, varargin)
+function results = adpTD1(problem, adp_opt, post_vfun)
 
 % WARNING: INCOMPLETE NOT UPDATED FOR NEW PROBLEM STRUCTURE
 
@@ -138,6 +138,7 @@ function results = adpTD1(problem, varargin)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  22  2017-06-14 20:56  BryanP      Further rework... init complete 
 %  21  2017-03-04 23:43  BryanP      Early rework for new problem structure: abstract common util* functions 
 %  20  2016-04-15 02:03  BryanP      Update documentation for required problem parameters
 %  19  2012-07-06 16:55  BryanP      Added time to PostToVfun calls
@@ -167,10 +168,13 @@ function results = adpTD1(problem, varargin)
 %===========================%
 %%     Initialization       %
 %===========================%
+%% ====== Handle Inputs =====
+if nargin < 2 || isempty(adp_opt)
+    adp_opt = struct([]);
+end
 
-%Support passing pre-build structures or cell arrays in for options
-if length(varargin) == 1
-    varargin = varargin{:};
+if nargin < 3 
+    post_vfun = [];
 end
 
 adp_defaults = {
@@ -184,7 +188,7 @@ adp_defaults = {
                 'explore_alg'           []
 
                 'seed_vfun_init'        'adpSBI'  %String name of function
-                'seed_vfun_params'      {'sbi_samples' 100}
+                'seed_vfun_params'      {'sbi_state_samples_per_time', 20; 'sbi_decisions_per_sample', 5; 'sbi_uncertain_samples_per_post', 5}
                 'vfun_update_in_place'  false   %Flag when using as a sub-algorithm to help initialize or explore 
                 
                 'tol_bkps_val'          1e-4
@@ -194,7 +198,7 @@ adp_defaults = {
                 'converge_bkps'         true
 
                 %value function defaults
-                'vfun_approx'           'LocalRegr'
+                'vfun_approx'           'LocalAvg'
                 'vfun_setup_params'     {'AutoExpand', true}
                 'vfun_approx_params'    {}
 
@@ -212,7 +216,7 @@ adp_defaults = {
                 'old_results'           []      %Existing results (including value function) to start from
                };
 
-adp_opt = DefaultOpts(varargin, adp_defaults);
+adp_opt = DefaultOpts(adp_opt, adp_defaults);
 
 %==== Additional Setup
 %---- Start timer
@@ -230,6 +234,14 @@ end
 % Check required problem fields & fill other defaults
 verifyProblemStruct(problem);
 
+%% ====== Standardized Setup =====
+% Configure random numbers, including setup consistent stream if desired
+adp_opt = utilRandSetup(adp_opt);
+
+% Initialize parallel pool if required (and suppress parallel pool
+% initializtion if parallel off)
+[cache_par_auto, ps] = utilParSetup(adp_opt);    
+
 % Add additional required functions as needed
 problem.fOptimalDecision = utilFunctForProblem(problem, 'fOptimalDecision', @FindOptDecFromVfun);
 problem.fRandomSample = utilFunctForProblem(problem, 'fRandomSample', ...
@@ -238,15 +250,27 @@ problem.fRandomSample = utilFunctForProblem(problem, 'fRandomSample', ...
 problem.fDecCompare = utilFunctForProblem(problem, 'fDecCompare', @isequaln);
 problem.fValCompare = utilFunctForProblem(problem, 'fValCompare', @utilEqualWithTol);
 
-%% >>>>>>>>>>>>>>> EDIT MARKER <<<<<<<<<<<<<<<<<<
+%% ====== Additional Setup =====
+%-- Initialize POST decision value function (or use the one passed in)
+[post_vfun, adp_opt] = utilSetupVfun(problem, adp_opt, post_vfun);
+
+disc_factor = 1-problem.discount_rate;
+
+% TODO: Handle iteration counts when resuming a run
+%         if isfield(adp_opt.old_results, 'n_iter')
+%             iter_start = adp_opt.old_results.n_iter;
+%         else
+%             iter_start = 0;
+%         end
+% 
+%         if adp_opt.verbose
+%             fprintf('Resuming at iteration #%d\n', iter_start)
+%         end
+iter_start = 0;
 
 
-%---- Options and value functions
-[adp_opt, vfun, iter_start] = InitVfun(adp_opt, problem);
-disc_factor = 1-problem.disc_rate;
-
-%---- Initial resutls and log entries
-results.vfun = vfun;
+%---- Initial results and log entries
+results.post_vfun = post_vfun;
 results.adp = adp_opt;
 results.is_converged = false;
 results.n_iter = iter_start;
@@ -258,9 +282,13 @@ results.log.backpass_abort = zeros(1, problem.n_periods+1);
 %==========================%
 %%   Seed Value Functions  %
 %==========================%
-if not(isempty(adp_opt.vfun_init_alg))
-    vfun = SeedValueFunctions(vfun, adp_opt, problem, results);
+if not(isempty(adp_opt.seed_vfun_init))
+    vfun_init_func = str2func(adp_opt.seed_vfun_init);
+    post_vfun = vfun_init_func(problem, adp_opt.seed_vfun_params, post_vfun);
 end
+
+%% >>>>>>>>>>>>>>> EDIT MARKER <<<<<<<<<<<<<<<<<<
+
 
 %====================%
 %%   Main Algorithm  %
@@ -308,7 +336,7 @@ for iter = (iter_start+1):(iter_start + adp_opt.max_iter)
             parfor s_path = 1:adp_opt.sample_per_iter
                 [decision(:, :, s_path), dec_contrib(s_path, :), post_s(:, :, s_path),...
                  fwd_val(s_path, :), pre_s_list(:, :, s_path), sim_contrib(s_path, :)] ...
-                    = ForwardPassCore(problem, fn, vfun, adp_opt, ...
+                    = ForwardPassCore(problem, fn, post_vfun, adp_opt, ...
                         t_start, pre_start(s_path,:), ...
                         in_bootstrap, start_decision(s_path,:), start_post(s_path, :));
             end
@@ -316,7 +344,7 @@ for iter = (iter_start+1):(iter_start + adp_opt.max_iter)
             for s_path = 1:adp_opt.sample_per_iter
                 [decision(:, :, s_path), dec_contrib(s_path, :), post_s(:, :, s_path),...
                     fwd_val(s_path, :), pre_s_list(:, :, s_path), sim_contrib(s_path, :)] ...
-                    = ForwardPassCore(problem, fn, vfun, adp_opt, ...
+                    = ForwardPassCore(problem, fn, post_vfun, adp_opt, ...
                         t_start, pre_start(s_path,:), ...
                         in_bootstrap, start_decision(s_path,:), start_post(s_path, :));
             end
@@ -391,12 +419,12 @@ for iter = (iter_start+1):(iter_start + adp_opt.max_iter)
                 backpass_ok = backpass_ok & not(isnan(val_to_update));
 
                 %Update the value function for good states
-                vfun(t).update(vfun_state(backpass_ok, :), ...
+                post_vfun(t).update(vfun_state(backpass_ok, :), ...
                     val_to_update(backpass_ok));
                 
                 % Now use the updated value function to get revised estimates
                 %  for all (good & bad) forward pass states
-                actual_vals = vfun(t).approx(vfun_state, adp_opt.vfun_approx_params{:});
+                actual_vals = post_vfun(t).approx(vfun_state, adp_opt.vfun_approx_params{:});
 
             else
                 % If not updating the value function, simply use the observed
@@ -407,7 +435,7 @@ for iter = (iter_start+1):(iter_start + adp_opt.max_iter)
 
                 %use ok mask to remove any NaNs to preven NaN in update call
                 backpass_ok = backpass_ok & not(isnan(actual_vals));
-                vfun(t).update(vfun_state(backpass_ok, :), actual_vals(backpass_ok));
+                post_vfun(t).update(vfun_state(backpass_ok, :), actual_vals(backpass_ok));
             end
 
             % Handle backpass abort for each simulation path
@@ -422,7 +450,7 @@ for iter = (iter_start+1):(iter_start + adp_opt.max_iter)
                         parfor s_path = 1:adp_opt.sample_per_iter
                             if backpass_ok(s_path)
                                 new_backpass_ok(s_path) = ...
-					BackPassDecCheckCore(problem, fn, vfun(t), adp_opt, t, ...
+					BackPassDecCheckCore(problem, fn, post_vfun(t), adp_opt, t, ...
                                         pre_s_list(t, :, s_path), decision(t, :, s_path)); %#ok<PFBNS>
                             end
                         end
@@ -430,7 +458,7 @@ for iter = (iter_start+1):(iter_start + adp_opt.max_iter)
                         for s_path = 1:adp_opt.sample_per_iter
                             if backpass_ok(s_path)
                                 new_backpass_ok(s_path) = ...
-					BackPassDecCheckCore(problem, fn, vfun(t), adp_opt, t, ...
+					BackPassDecCheckCore(problem, fn, post_vfun(t), adp_opt, t, ...
                                         pre_s_list(t, :, s_path), decision(t, :, s_path));
                             end
                         end
@@ -441,7 +469,7 @@ for iter = (iter_start+1):(iter_start + adp_opt.max_iter)
                     if adp_opt.bkps_use_updated_vfun
                         new_vals = actual_vals(backpass_ok);
                     else
-                        new_vals = approx(vfun(t), vfun_state(backpass_ok, :), adp_opt.vfun_approx_params{:});
+                        new_vals = approx(post_vfun(t), vfun_state(backpass_ok, :), adp_opt.vfun_approx_params{:});
                     end
 
                     new_backpass_ok(backpass_ok) = adp_opt.fn.ValCompare(new_vals, fwd_val(backpass_ok, t), adp_opt.tol_bkps_val);
@@ -496,20 +524,21 @@ if adp_opt.verbose && not(is_converged) && not(isempty(iter)) && iter == adp_opt
 end
 
 
-results.vfun = vfun;
+results.post_vfun = post_vfun;
 results.adp = adp_opt;
 results.is_converged = is_converged;
 results.n_iter = iter;
-[results.first_desc, dec_contrib, ~, cost_to_go] = adp_opt.fn.OptimalDec(problem, 1, first_pre_state, vfun(1), adp_opt);
+[results.first_desc, dec_contrib, ~, cost_to_go] = adp_opt.fn.OptimalDec(problem, 1, first_pre_state, post_vfun(1), adp_opt);
 results.objective = dec_contrib + disc_factor * cost_to_go;
 
 %% ===== Clean-up =====
-    %Reset Auto-parallel state
-    if not(isempty(cache_par_auto))
-        % when non-empty, we already created ps
-            ps.Pool.AutoCreate = cache_par_auto;
-    end
+%Reset Auto-parallel state
+if not(isempty(cache_par_auto))
+    % when non-empty, we already created ps
+        ps.Pool.AutoCreate = cache_par_auto;
 end
+
+end % Main Function
 
 %% ============ Helper Functions =============
 %----------------------
@@ -534,72 +563,6 @@ function localDisplayHeader(adp_opt)
                 adp_opt.max_iter, restart_string, adp_opt.sample_per_iter)
     fprintf('    max time %d sec, parallel %s\n', ...
                 adp_opt.max_time_sec, par_string)
-end
-
-%----------------------
-%%   InitVfun
-%----------------------
-function [adp_opt, vfun, iter_start] = InitVfun(adp_opt, problem)
-    % If no existing/old results
-    if isempty(adp_opt.old_results)
-        %--Setup value function from scratch
-        vfun_constructor = str2func(['fa' adp_opt.vfun_approx]);
-        %Create array of value functions. Reverse loop to pre-allocate size
-        for t = problem.n_periods+1:-1:1
-            %Note place holders for initial point and value lists
-            vfun(t) = vfun_constructor([],[], adp_opt.vfun_setup_params{:});
-            %Copy dimension names from state sets
-            vfun(t).PtDimNames = problem.state_set{t}.pt_dim_names;
-        end
-
-        iter_start = 0;
-
-    else %If existing value funtion exists, use it
-        if isfield(adp_opt.old_results, 'n_iter')
-            iter_start = adp_opt.old_results.n_iter;
-        else
-            iter_start = 0;
-        end
-
-        if adp_opt.verbose
-            if resume
-                fprintf('Resuming at iteration #%d\n', iter_start)
-            end
-            fprintf('Using (copy of) existing Value Function\n')
-        end
-        %Make a true, local copy of the value function (since they are handle
-        %objects. Otherwise, our additions will effect the stored results)
-        for t = problem.n_periods+1:-1:1
-            vfun(t) = copy(adp_opt.old_results.vfun(t));
-        end
-
-        %Simplify old_results to streamline our options structure
-        adp_opt.old_results = true;
-    end
-end
-
-%----------------------
-%   Seed Value Functions
-%----------------------
-function vfun = SeedValueFunctions(vfun, adp_opt, problem, results)
-    % If requested Initial Value function approximation using start_algorithm
-    start_alg = str2func(adp_opt.seed_vfun_init);
-
-    % Run the starting algorithm
-    if adp_opt.verbose
-        fprintf('Seeding value functions using %s', adp_opt.seed_vfun_init)
-    end
-    
-    %Configure to use existing value functions
-    % Note: structures are passed by value in MATLAB
-    results.vfun = vfun;
-    adp_opt.old_results = results;
-    adp_opt.vfun_update_in_place = true;    %Use existing value functions
-    
-    % Actually run the startup algorithm
-    seed_results = start_alg(problem, adp_opt);
-    vfun = seed_results.vfun;
-
 end
 
 %----------------------
