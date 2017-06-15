@@ -1,7 +1,7 @@
-function results = adpSBI(problem, adp_opt, post_vfun)
+function results = adpSBI(problem, adp_opt, old_results)
 % adpSBI Sampled Backward Induction for estimated ADP and intialization
 %
-% results = adpSBI(problem, adp_opt, post_vfun)
+% results = adpSBI(problem, adp_opt, old_results)
 %
 % Updated for dynamo problem definition structure
 % 
@@ -17,6 +17,7 @@ function results = adpSBI(problem, adp_opt, post_vfun)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  32  2017-06-15 06:04  BryanP      Reworked to use old_results rather than just post_vfun 
 %  31  2017-06-14 07:13  BryanP      Extract utilSetupVfun 
 %  30  2017-06-14 04:51  BryanP      Removed confusing old intro documentation (none is hopefully better than wrong) 
 %  29  2017-06-01 22:17  BryanP      BUGFIX: use full vector of zeros for all assignments for unspecified functions 
@@ -55,7 +56,7 @@ if nargin < 2 || isempty(adp_opt)
 end
 
 if nargin < 3 
-    post_vfun = [];
+    old_results = [];
 end
 
 %--- Handle ADP options
@@ -72,9 +73,6 @@ adp_defaults = {
                 'vfun_setup_params'     {'AutoExpand', true}
                 'vfun_approx_params'    {}
 
-                %decision function defaults
-                'decfun_params'         {}
-                
                 %uncertainty sampling defaults
                 'sample_opt'            {'sobol'}
                 
@@ -133,17 +131,27 @@ if length(adp_opt.sbi_uncertain_samples_per_post) < problem.n_periods+1
         adp_opt.sbi_uncertain_samples_per_post(end);
 end
 
-%-- Initialize POST decision value function (or use the one passed in)
-[post_vfun, adp_opt] = utilSetupVfun(problem, adp_opt, post_vfun);
-
-%-- Determine the dimensions (length) for states
-ndim.pre = zeros(1, problem.n_periods+1);
-ndim.post = zeros(1, problem.n_periods+1);
-for t = 1:problem.n_periods+1
-    ndim.pre(t) = problem.state_set{1}.N_dim;
-    %TODO: actually determine post decision size
-    ndim.post(t) = ndim.pre(t);
+%-- Manage old results and Initialize POST decision value function as needed 
+if isempty(old_results)
+    [post_vfun, adp_opt] = utilSetupVfun(problem, adp_opt);
+    results.log.sbi_runs = 1;
+else
+    [post_vfun, adp_opt] = utilSetupVfun(problem, adp_opt, old_results.post_vfun);
+    if isfield(old_results, 'log')
+        results.log = old_results.log;
+    end
+    if not(isfield(results.log, 'sbi_runs'))
+        results.log.sbi_runs = 1;
+    else
+        results.log.sbi_runs = results.log.sbi_runs + 1;
+    end    
 end
+
+%---- Initial results and log entries
+results.post_vfun = post_vfun;
+results.adp_opt = adp_opt;
+results.first_decision = NaN;
+results.objective = NaN;
 
 %% ====== Sampled Backward Induction Algorithm =====
 %% --- Sample terminal states (T+1) ---

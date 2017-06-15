@@ -62,10 +62,11 @@ function [multi_inv_problem, results] = MultiInv_demo(varargin)
 % 
 %   struct with fields:
 % 
-%     first_decision: [2 4]
-%          objective: 16.1959
+%                log: [1×1 struct] 
 %          post_vfun: [1×4 faLocalRegr]
 %            adp_opt: [1×1 struct]
+%     first_decision: [2 4]
+%          objective: 16.1959
 % %
 % >> isequal(small_sbi_result.first_decision, small_opt_policy_cell{1,2})
 % 
