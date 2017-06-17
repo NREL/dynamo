@@ -389,6 +389,7 @@ for t = problem.n_periods:-1:1
     %Gather contributions for this set of next_pre_states
 
     %>>>       compute before decision operations costs
+    %TODO: Include option to parallelize operations
     if (t < n_periods) && not(isempty(problem.fOpsBeforeDecision))
         % Compute unique ops costs, using internal Ops loop
         before_dec_ops = problem.fOpsBeforeDecision(params_only, t+1, next_pre_list);

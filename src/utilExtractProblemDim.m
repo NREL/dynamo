@@ -1,16 +1,20 @@
-function ndim = utilExtractStateDim(problem)
-% UTILEXTRACTSTATEDIM helper function to extract the pre and post state dimensions for adp algorithms
+function ndim = utilExtractProblemDim(problem, t)
+% UTILEXTRACTPROBLEMDIM helper function to extract problem dimensions (pre, post, decision) for adp algorithms
 
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  2   2017-06-17 05:03  BryanP      Overhaul to add post and decision sizing and convert all to a single time 
 %  1   2017-06-15 04:48  BryanP      Extracted from adpSBI v31 
 
-
-ndim.pre = zeros(1, problem.n_periods+1);
-ndim.post = zeros(1, problem.n_periods+1);
-for t = 1:problem.n_periods+1
-    ndim.pre(t) = problem.state_set{1}.N_dim;
-    %TODO: actually determine post decision size
-    ndim.post(t) = ndim.pre(t);
+if nargin < 2 || isempty(t)
+    t=1;
 end
+
+ndim.pre = problem.state_set{t}.N_dim;
+example_pre = problem.state_set{t}.sample();
+example_decision_list = problem.fDecisionSet(problem.params, t, example_pre);
+example_decision = example_decision_list.sample();
+ndim.decision = length(example_decision);
+example_post = problem.fDecisionApply(problem.params, t, example_pre, example_decision);
+ndim.post = length(example_post);
