@@ -14,6 +14,7 @@ function [results] = dpBI(problem, varargin)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- -------------------------------------
+%   7  2017-06-29 14:17    JesseB     BUGFIX: added state_match_tol for ismembertol()
 %   6  2017-04-26 17:32    BryanP     BUGFIX: correct operations costs (now Working!) 
 %   5  2017-04-26 05:32    BryanP     Working? 
 %   4  2017-04-25 07:00    bpalmint   WIP: mostly through uncertainty management 
@@ -34,6 +35,7 @@ dp_defaults = {
                 'parallel'              false
                 'fix_rand'              false
                 'fix_rand_is_done'      false
+                'state_match_tol'       .000001
                };
 
 dp_opt = DefaultOpts(varargin, dp_defaults);
@@ -196,14 +198,14 @@ for t = problem.n_periods:-1:1
             
             %>>>         extract value from next (t+1) pre-decision state
             next_pre_value = zeros(size(uncertainty_contrib));
-            [valid_state_mask, next_state_map] = ismember(next_pre_state_list, pre_state_list{t+1}, 'rows');
+            [valid_state_mask, next_state_map] = ismembertol(next_pre_state_list, pre_state_list{t+1}, dp_opt.state_match_tol, 'ByRows', true);
             if not(all(valid_state_mask))
                 warning('dbBI:state_not_found', 'Some post uncertainty states not found for post-state: [%s] at t=%d. Setting values to -Inf', ...
                     sprintf('%g ', this_post_state), t)
                 next_pre_value(not(valid_state_mask)) = -Inf;
-            end
+            else
             next_pre_value(valid_state_mask) = values{t+1}(next_state_map);
-            
+            end
             %>>>         compute post_random_val as sum( uncertainty_contribution, after_random_ops, (1-disc_rate) * next_pre_value) 
             post_random_value = uncertainty_contrib + after_rand_ops + (1-problem.discount_rate) * next_pre_value;
 
