@@ -41,7 +41,8 @@ function [options, unused, match_map] = DefaultOpts(opt_in, defaults, varargin)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
-%   9  2017-06-14 06:33  BryanP      BUGFIX add support for nested cell arrays 
+%  10  2017-06-14 20:11  BryanP      Always show unused options warning 
+%   9  2017-06-14 06:33  BryanP      BUGFIX add  support for nested cell arrays 
 %   8  2017-06-14 06:17  BryanP      BUGFIX when handling single item structs for opt_in 
 %   7  2016-10-06 11:27  BryanP      Renamed to simply DefaultOpts to avoid confusion with set classes based on AbstractSet 
 %   6  2012-06-27 15:55  BryanP      UPDATE: support intial nested struct + additional pairs in a cell array
@@ -142,7 +143,7 @@ else
         %Only copy those with matching fields in defaults
         if isfield(options, f_str)
             options(1).(f_str) = opt_in.(f_str);
-        elseif nargout > 1
+        else
             unused{end+1} = f_str; %#ok<AGROW> b/c don't know how big it will be
             match_map(f) = false;
         end

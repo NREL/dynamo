@@ -1,4 +1,4 @@
-function results = adpTD1(problem, varargin)
+function results = adpTD1(problem, adp_opt, old_results)
 
 % WARNING: INCOMPLETE NOT UPDATED FOR NEW PROBLEM STRUCTURE
 
@@ -132,13 +132,17 @@ function results = adpTD1(problem, varargin)
 %                    Default: simple internal relative value compare with
 %                    divide by zero work around. Function signature:
 %                      t_or_f_list = fValCompare(new_val_list, old_val_list, tol)
-%                    The associate tolerance is set by the 'tol_bkps_val'
+%                    The associate tolerance is set by the 'backpass_val_tol'
 %                    adp option
 
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
-%  21  2017-03-04 23:43  BryanP      Early rework for new problem structure: abstract common util* functions 
+%  25  2017-06-17 07:35  BryanP      WIP: Forward pass code (need to fix parfor variables) 
+%  24  2017-06-17 05:35  BryanP      WIP: Forward pass outline and data setup 
+%  23  2017-06-15 06:04  BryanP      WIP: Rework options, result init, & handling of old_results 
+%  22  2017-06-14 20:56  BryanP      WIP: Further rework... init complete 
+%  21  2017-03-04 23:43  BryanP      WIP: Early rework for new problem structure: abstract common util* functions 
 %  20  2016-04-15 02:03  BryanP      Update documentation for required problem parameters
 %  19  2012-07-06 16:55  BryanP      Added time to PostToVfun calls
 %  18  2012-07-05        BryanP      Integrated "smart" sampled boostrap
@@ -167,10 +171,13 @@ function results = adpTD1(problem, varargin)
 %===========================%
 %%     Initialization       %
 %===========================%
+%% ====== Handle Inputs =====
+if nargin < 2 || isempty(adp_opt)
+    adp_opt = struct([]);
+end
 
-%Support passing pre-build structures or cell arrays in for options
-if length(varargin) == 1
-    varargin = varargin{:};
+if nargin < 3 
+    old_results = [];
 end
 
 adp_defaults = {
@@ -180,39 +187,42 @@ adp_defaults = {
                 'max_time_sec'          Inf
 
                 %adpTemporalDifference related settings
-                'explore_iter'          100     %(DISABLED) Frequency of additional exploration mid-optimization
-                'explore_alg'           []
+                'td1_explore_iter'          100     %(DISABLED) Frequency of additional exploration mid-optimization
+                'td1_explore_algorithm'     []
 
-                'seed_vfun_init'        'adpSBI'  %String name of function
-                'seed_vfun_params'      {'sbi_samples' 100}
-                'vfun_update_in_place'  false   %Flag when using as a sub-algorithm to help initialize or explore 
+                'td1_seed_vfun_algorithm'	'adpSBI'  %String name of function
+                'seed_vfun_params'          {'sbi_state_samples_per_time', 20; 'sbi_decisions_per_sample', 5; 'sbi_uncertain_samples_per_post', 5}
+%                 'td1_seed_vfun_algorithm'	''  %String name of function
+%                 'seed_vfun_params'          {}
                 
-                'tol_bkps_val'          1e-4
-                'bkps_use_updated_vfun' false
-                'bkps_abort'            true
-                'bkps_abort_by_dec'     false
-                'converge_bkps'         true
+                % backpass abort settings (i.e. don't update value function on
+                % backward pass if would change the decision
+                'backpass_abort'            true    % Enable backpass abort
+                'backpass_abort_by_dec'     true    % Use a change in decisions to trigger abort (slower because requires finding optimal decision). If false, values are compared instead
+                'backpass_val_tol'          1e-4    % Tolerance for accepting new value during backpass
+                'backpass_use_updated_vfun' false   % First update the value function with the latest contribution before checking for a change during backpass
+                'backpass_converge'         true    % Check for convergence (and possibly stop) during backpass
 
                 %value function defaults
-                'vfun_approx'           'LocalRegr'
+                'vfun_approx'           'LocalAvg'
                 'vfun_setup_params'     {'AutoExpand', true}
                 'vfun_approx_params'    {}
 
-                'decfun_params'         {}
-
                 %uncertainty sampling defaults
                 'sample_opt'            {}
+
+                %manage collapsing of non-unique states
+                'ops_collapse_duplicate'        true	%If true, reduces state list to unique_states before calling ops. Set to false with stochastic ops costs (e.g. many partially hidden Markov)
+                'next_pre_collapse_duplicate'	true	%If true, reduces next-predecision state list to unique_states before computing next period look ahead portion of post decision value function
 
                 %general ADP options used here
                 'verbose'               50
                 'parallel'              false
                 'fix_rand'              false
                 'fix_rand_is_done'      false
-              
-                'old_results'           []      %Existing results (including value function) to start from
                };
 
-adp_opt = DefaultOpts(varargin, adp_defaults);
+adp_opt = DefaultOpts(adp_opt, adp_defaults);
 
 %==== Additional Setup
 %---- Start timer
@@ -222,13 +232,21 @@ parTD_time = tic;
 % NOTE: must occur after adp_opts setup, because we use some of those
 % settings
 
-% First announce what we are doing
+% Announce algorithm in use and setup
 if adp_opt.verbose
-    localDisplayHeader(adp_opt)
+    localDisplayHeader(adp_opt, old_results)
 end
     
 % Check required problem fields & fill other defaults
 verifyProblemStruct(problem);
+
+%% ====== Standardized Setup =====
+% Configure random numbers, including setup consistent stream if desired
+adp_opt = utilRandSetup(adp_opt);
+
+% Initialize parallel pool if required (and suppress parallel pool
+% initializtion if parallel off)
+[cache_par_auto, ps] = utilParSetup(adp_opt);    
 
 % Add additional required functions as needed
 problem.fOptimalDecision = utilFunctForProblem(problem, 'fOptimalDecision', @FindOptDecFromVfun);
@@ -238,29 +256,69 @@ problem.fRandomSample = utilFunctForProblem(problem, 'fRandomSample', ...
 problem.fDecCompare = utilFunctForProblem(problem, 'fDecCompare', @isequaln);
 problem.fValCompare = utilFunctForProblem(problem, 'fValCompare', @utilEqualWithTol);
 
-%% >>>>>>>>>>>>>>> EDIT MARKER <<<<<<<<<<<<<<<<<<
+%% ====== Additional Setup =====
+% Pre-compute some oft reused calcuations
+disc_factor = 1-problem.discount_rate;
 
+%-- Manage old results and Initialize POST decision value function as needed 
+if isempty(old_results)
+    iter_start = 0;
+    [post_vfun, adp_opt] = utilSetupVfun(problem, adp_opt);
+    results.log.td1_runs = 1;
+else
+    if isfield(old_results, 'n_iter')
+        iter_start = old_results.n_iter;
+    else
+        iter_start = 0;
+    end
+    [post_vfun, adp_opt] = utilSetupVfun(problem, adp_opt, old_results.post_vfun);
+    if adp_opt.verbose
+        fprintf('Resuming at iteration #%d\n', iter_start)
+    end
+    if isfield(old_results, 'log')
+        results.log = old_results.log;
+    end
+    if not(isfield(results.log, 'td1_runs'))
+        results.log.td1_runs = 1;
+    else
+        results.log.td1_runs = results.log.td1_runs + 1;
+    end    
+end
 
-%---- Options and value functions
-[adp_opt, vfun, iter_start] = InitVfun(adp_opt, problem);
-disc_factor = 1-problem.disc_rate;
-
-%---- Initial resutls and log entries
-results.vfun = vfun;
-results.adp = adp_opt;
+%---- Initialize results and log entries
+results.post_vfun = post_vfun;
+results.adp_opt = adp_opt;
 results.is_converged = false;
 results.n_iter = iter_start;
-results.first_desc = NaN;
+results.first_decision = NaN;
 results.objective = NaN;
 
-results.log.backpass_abort = zeros(1, problem.n_periods+1);
+if not(isfield(results.log, 'backpass_abort'))
+    results.log.backpass_abort = zeros(1, problem.n_periods+1);
+end
+
+%-- Determine the dimensions (length) for states
+% Assumes constant sizes across time
+ndim = utilExtractProblemDim(problem);
 
 %==========================%
 %%   Seed Value Functions  %
 %==========================%
-if not(isempty(adp_opt.vfun_init_alg))
-    vfun = SeedValueFunctions(vfun, adp_opt, problem, results);
+% Call some form of, possibly dumb or incomplete, adp algorithm to
+% initialize the value function
+if not(isempty(adp_opt.td1_seed_vfun_algorithm))
+    if adp_opt.verbose
+        fprintf('SEEDing value function using %s: \n', adp_opt.td1_seed_vfun_algorithm)
+    end
+    vfun_init_func = str2func(adp_opt.td1_seed_vfun_algorithm);
+    results = vfun_init_func(problem, adp_opt.seed_vfun_params, results);
+    post_vfun = results.post_vfun;
+else
+    if adp_opt.verbose
+        fprintf('    No value function SEED function defined, skipping\n')
+    end
 end
+
 
 %====================%
 %%   Main Algorithm  %
@@ -271,15 +329,6 @@ if adp_opt.verbose
 end
 
 %=== Variable Setup
-%---- Setup iteration loop related storage
-pre_s_list = NaN(problem.n_periods + 1, problem.dims.pre_state, adp_opt.sample_per_iter);
-post_s = NaN(problem.n_periods + 1, problem.dims.post_state, adp_opt.sample_per_iter);
-decision = NaN(problem.n_periods + 1, problem.dims.decision, adp_opt.sample_per_iter);
-
-dec_contrib = zeros(adp_opt.sample_per_iter, problem.n_periods + 1);
-sim_contrib = zeros(adp_opt.sample_per_iter, problem.n_periods + 1);
-fwd_val = zeros(adp_opt.sample_per_iter, problem.n_periods + 1);
-
 %---- Setup initial state & state storage
 first_pre_state = problem.state_set{1}.as_array();
 if size(first_pre_state, 1)
@@ -294,33 +343,123 @@ is_converged = false;
 for iter = (iter_start+1):(iter_start + adp_opt.max_iter)
 
     %% ===== FORWARD PASS
-
+    % Explanation: In each forward pass, the algorithm starts with the
+    % initial state and then proceeds through time by selecting what seems
+    % like the best decision based on the current value function estimate
+    % (exploit), sampling uncertanty, advancing time, and repeating. The
+    % value function will then be updated later based on the backward pass.
+    % A representative basic (greedy) algorithm would be:
+    %
+    %A01>> Start with initial pre_state
+    %A02>> For t in 1 to end
+    %A03>>   Compute before decision operations costs
+    %A04>>   FindOptimalDecision (based on decision_costs and next post_decision value function) 
+    %A05>>   Determine post_decision state
+    %A06>>   Compute after decision operations costs
+    %A07>>   Sample uncertainty
+    %A08>>   Compute uncertainty_contribution
+    %A09>>   Compute after random operations costs
+    %A10>>   Determine resulting next pre_state
+    %
+    % However, this approach can get stuck with the wrong apparent
+    % best, therefor it is important to mix in some apparently non-ideal
+    % options (explore). This modifies the decision selection with:
+    %
+    %B04>   Randomly sample decision
+    %
+    % Furthermore we proceed with multiple paths simultaneously which
+    % enables parallelization and vectorized value function updates. This
+    % requires interleaving the explore vs. exploit, but also enables
+    % moving all of the operations cost estimates (lines 3, 6, and 9) to
+    % the end to remove duplicates and encourage reuse of these presumed to
+    % be expensive computations
+    
+    %---- Setup for forward pass
     %print out progress indicator dots
+    % TODO: rename function with util prefix
     DisplayProgress(ceil(adp_opt.verbose/adp_opt.sample_per_iter), iter, [])
 
-    t_start = 1;
-    pre_start = repmat(first_pre_state,adp_opt.sample_per_iter,1);
+%     %REMOVE?
+%     % Cache only required structure pieces for use in the following set of
+%     % parfor loops
 
-    start_decision = zeros(adp_opt.sample_per_iter,1);
-    start_post = adp_opt.fn.ApplyDscn(problem, pre_start, 0, t_start);
+    %-- Reset iteration loop related storage
+    %contributions & values
+    % Note: Since these are only a scalar value per sample per time period,
+    % each column corresponds to a different time
+    dec_contrib = NaN(adp_opt.sample_per_iter, problem.n_periods + 1);
+    uncertainty_contrib = NaN(adp_opt.sample_per_iter, problem.n_periods + 1);
+    ops_before_dec_contrib = NaN(adp_opt.sample_per_iter, problem.n_periods + 1);
+    ops_after_dec_contrib = NaN(adp_opt.sample_per_iter, problem.n_periods + 1);
+    ops_after_random_contrib = NaN(adp_opt.sample_per_iter, problem.n_periods + 1);
+    fwd_val = NaN(adp_opt.sample_per_iter, problem.n_periods + 1); 
+    
+    %State and Decision lists
+    % Note: Since each of these is a row vector per sample per time period,
+    % time is captured in the third dimension
+    pre_s_list = NaN(adp_opt.sample_per_iter, ndim.pre, problem.n_periods + 1);
+    post_s_list = NaN(adp_opt.sample_per_iter, ndim.post, problem.n_periods);
+    decision_list = NaN(adp_opt.sample_per_iter, ndim.decision, problem.n_periods);
+    uncertainty_list = NaN(adp_opt.sample_per_iter, ndim.decision, problem.n_periods);
+    
+    parfor s_path = 1:adp_opt.sample_per_iter
+        %A01>> Start with initial pre_state
+        next_pre = first_pre_state;
 
-        if adp_opt.parallel
-            parfor s_path = 1:adp_opt.sample_per_iter
-                [decision(:, :, s_path), dec_contrib(s_path, :), post_s(:, :, s_path),...
-                 fwd_val(s_path, :), pre_s_list(:, :, s_path), sim_contrib(s_path, :)] ...
-                    = ForwardPassCore(problem, fn, vfun, adp_opt, ...
-                        t_start, pre_start(s_path,:), ...
-                        in_bootstrap, start_decision(s_path,:), start_post(s_path, :));
-            end
-        else
-            for s_path = 1:adp_opt.sample_per_iter
-                [decision(:, :, s_path), dec_contrib(s_path, :), post_s(:, :, s_path),...
-                    fwd_val(s_path, :), pre_s_list(:, :, s_path), sim_contrib(s_path, :)] ...
-                    = ForwardPassCore(problem, fn, vfun, adp_opt, ...
-                        t_start, pre_start(s_path,:), ...
-                        in_bootstrap, start_decision(s_path,:), start_post(s_path, :));
-            end
+        %A02>> For t in 1 to end
+        for t = 1:problem.n_periods %#ok<PFBNS>
+            pre_s_list(s_path, :, t) = next_pre;
+
+            %A04>>   FindOptimalDecision (based on decision_costs and next post_decision value function) 
+            %A05>>   Determine post_decision state
+            [decision_list(s_path, :, t), dec_contrib(s_path, t), post_s_list(s_path, :, t), fwd_val(s_path, t)] = ...
+                        problem.fOptimalDecision(problem, t, pre_s_list(s_path, :, t), post_vfun(t), adp_opt.vfun_approx_params); %#ok<PFBNS>
+
+            %A07>>   Sample uncertainty
+            uncertainty_list(s_path, :, t) = problem.fRandomSample(t, 1);
+            
+            %A08>>   Compute uncertainty_contribution
+            uncertainty_contrib(s_path, t) = problem.fRandomCost(problem.params, t, post_s_list(s_path, :, t), uncertainty_list(s_path, :, t));
+            
+            %A10>>   Determine resulting next pre_state
+            next_pre = problem.fRandomApply(problem.params, t, post_s_list(s_path, :, t), uncertainty_list(s_path, :, t));
         end
+    end
+    
+%% >>>>>>>>>>>>>>> EDIT MARKER <<<<<<<<<<<<<<<<<<
+% NOTE: parfor not working yet... need to put into function? Then can also
+% change vectorization as practical
+
+%% ===== TERMINAL PERIOD (Forward Pass)
+    t = problem.n_periods + 1;
+    % Map predecision space to post decision space using a zero
+    % decision since no decisions to make in terminal period. This also
+    % results in on a single possible "post" decision state and
+    % corresponding forward pass estimated value so we can assign it
+    % directly
+    post_s_list(t, :)...
+        = adp_opt.fn.ApplyDscn(problem, pre_s_list(t, :), 0, t);
+    %Compute forward values
+    if isempty(adp_opt.fn.PostToVfun)
+        vfun_state_list = post_s_list(t, :);
+    else
+        vfun_state_list = adp_opt.fn.PostToVfun(problem, post_s_list(t, :), t);
+    end
+
+    if not(in_bootstrap)
+        fwd_val(t) = vfun(t).approx(vfun_state_list, adp_opt.vfun_approx_params{:});
+    end
+
+    % Now simulate to find the actual values
+    [~, uncertainty_contrib(t), ~]...
+        = adp_opt.fn.Sim(problem, t, 0, post_s_list(t, :), full_state);
+    % Note: no need to set decision cost to zero, b/c it was already
+    % initialized that way.
+
+    %A03>>   Compute before decision operations costs
+    %A06>>   Compute after decision operations costs
+    %A09>>   Compute after random operations costs
+
 
         %% ===== BACKWARD PASS
         % Note: terminal period partly treated like any other b/c descion costs
@@ -337,7 +476,7 @@ for iter = (iter_start+1):(iter_start + adp_opt.max_iter)
         for t = problem.n_periods+1: -1: t_start
             %Convert postdec states for current time period to vfun
             %space (if needed)
-            vfun_state = post_s(t, :, :);
+            vfun_state = post_s_list(t, :, :);
             %Reshape required b/c slicing from 3-D
             vfun_state = reshape(vfun_state, [], adp_opt.sample_per_iter)';
             if not(isempty(problem.MapState2Vfun))
@@ -361,7 +500,7 @@ for iter = (iter_start+1):(iter_start + adp_opt.max_iter)
                 % Initialize/reset actual value accumulator for terminal period
                 % to avoid double counting sim_contrib
                 actual_vals = zeros(adp_opt.sample_per_iter, 1);
-                contrib = sim_contrib(:, t);
+                contrib = uncertainty_contrib(:, t);
 %                %and then again for 2nd to last 
 %             elseif t == problem.n_periods
 %                 actual_vals = zeros(adp_opt.sample_per_iter, 1);
@@ -374,7 +513,7 @@ for iter = (iter_start+1):(iter_start + adp_opt.max_iter)
             % contribution that is a function of the next-period decision
             % and next-period simulation. No discounting required b/c the
             % postdecision value functin is stored in t+1 money
-                contrib = sim_contrib(backpass_ok, t+1)...
+                contrib = uncertainty_contrib(backpass_ok, t+1)...
                            + dec_contrib(backpass_ok, t+1);
             end
 
@@ -383,7 +522,7 @@ for iter = (iter_start+1):(iter_start + adp_opt.max_iter)
             % Note: current period (t) value function stored in t+1
             % dollars, but need to discount actual (future) values since
             % they are in t+2 money
-            if adp_opt.bkps_use_updated_vfun
+            if adp_opt.backpass_use_updated_vfun
 
                 % Update the results from the forward pass. Bad values will be NaNs 
                 val_to_update = contrib + disc_factor * actual_vals;
@@ -391,12 +530,12 @@ for iter = (iter_start+1):(iter_start + adp_opt.max_iter)
                 backpass_ok = backpass_ok & not(isnan(val_to_update));
 
                 %Update the value function for good states
-                vfun(t).update(vfun_state(backpass_ok, :), ...
+                post_vfun(t).update(vfun_state(backpass_ok, :), ...
                     val_to_update(backpass_ok));
                 
                 % Now use the updated value function to get revised estimates
                 %  for all (good & bad) forward pass states
-                actual_vals = vfun(t).approx(vfun_state, adp_opt.vfun_approx_params{:});
+                actual_vals = post_vfun(t).approx(vfun_state, adp_opt.vfun_approx_params{:});
 
             else
                 % If not updating the value function, simply use the observed
@@ -407,14 +546,14 @@ for iter = (iter_start+1):(iter_start + adp_opt.max_iter)
 
                 %use ok mask to remove any NaNs to preven NaN in update call
                 backpass_ok = backpass_ok & not(isnan(actual_vals));
-                vfun(t).update(vfun_state(backpass_ok, :), actual_vals(backpass_ok));
+                post_vfun(t).update(vfun_state(backpass_ok, :), actual_vals(backpass_ok));
             end
 
             % Handle backpass abort for each simulation path
-            if adp_opt.bkps_abort && not(in_bootstrap)
+            if adp_opt.backpass_abort && not(in_bootstrap)
                 new_backpass_ok = backpass_ok;
                 
-                if adp_opt.bkps_abort_by_dec && t <= problem.n_periods
+                if adp_opt.backpass_abort_by_dec && t <= problem.n_periods
                 %If aborting based on changed decisions:
                 %Flag any decisions that have changed too much as not OK
                 %Note: no decisions in the terminal state: will only abort those on values
@@ -422,29 +561,29 @@ for iter = (iter_start+1):(iter_start + adp_opt.max_iter)
                         parfor s_path = 1:adp_opt.sample_per_iter
                             if backpass_ok(s_path)
                                 new_backpass_ok(s_path) = ...
-					BackPassDecCheckCore(problem, fn, vfun(t), adp_opt, t, ...
-                                        pre_s_list(t, :, s_path), decision(t, :, s_path)); %#ok<PFBNS>
+					BackPassDecCheckCore(problem, fn, post_vfun(t), adp_opt, t, ...
+                                        pre_s_list(t, :, s_path), decision_list(t, :, s_path)); %#ok<PFBNS>
                             end
                         end
                     else
                         for s_path = 1:adp_opt.sample_per_iter
                             if backpass_ok(s_path)
                                 new_backpass_ok(s_path) = ...
-					BackPassDecCheckCore(problem, fn, vfun(t), adp_opt, t, ...
-                                        pre_s_list(t, :, s_path), decision(t, :, s_path));
+					BackPassDecCheckCore(problem, fn, post_vfun(t), adp_opt, t, ...
+                                        pre_s_list(t, :, s_path), decision_list(t, :, s_path));
                             end
                         end
                     end
                 else
                     % Otherwise we check our forward pass vs the current
                     % (post update) values
-                    if adp_opt.bkps_use_updated_vfun
+                    if adp_opt.backpass_use_updated_vfun
                         new_vals = actual_vals(backpass_ok);
                     else
-                        new_vals = approx(vfun(t), vfun_state(backpass_ok, :), adp_opt.vfun_approx_params{:});
+                        new_vals = approx(post_vfun(t), vfun_state(backpass_ok, :), adp_opt.vfun_approx_params{:});
                     end
 
-                    new_backpass_ok(backpass_ok) = adp_opt.fn.ValCompare(new_vals, fwd_val(backpass_ok, t), adp_opt.tol_bkps_val);
+                    new_backpass_ok(backpass_ok) = adp_opt.fn.ValCompare(new_vals, fwd_val(backpass_ok, t), adp_opt.backpass_val_tol);
 
                 end
                 
@@ -466,7 +605,7 @@ for iter = (iter_start+1):(iter_start + adp_opt.max_iter)
     %---- Check for convergence
     % If we haven't converged on decisions for the backpass, assume we
     % haven't converged
-    if not(in_bootstrap) && adp_opt.converge_bkps && all(backpass_ok)
+    if not(in_bootstrap) && adp_opt.backpass_converge && all(backpass_ok)
         if adp_opt.verbose
             fprintf('BkPs_')
         end
@@ -496,35 +635,36 @@ if adp_opt.verbose && not(is_converged) && not(isempty(iter)) && iter == adp_opt
 end
 
 
-results.vfun = vfun;
-results.adp = adp_opt;
+results.post_vfun = post_vfun;
+results.adp_opt = adp_opt;
 results.is_converged = is_converged;
 results.n_iter = iter;
-[results.first_desc, dec_contrib, ~, cost_to_go] = adp_opt.fn.OptimalDec(problem, 1, first_pre_state, vfun(1), adp_opt);
+[results.first_decision, dec_contrib, ~, cost_to_go] = adp_opt.fn.OptimalDec(problem, 1, first_pre_state, post_vfun(1), adp_opt);
 results.objective = dec_contrib + disc_factor * cost_to_go;
 
 %% ===== Clean-up =====
-    %Reset Auto-parallel state
-    if not(isempty(cache_par_auto))
-        % when non-empty, we already created ps
-            ps.Pool.AutoCreate = cache_par_auto;
-    end
+%Reset Auto-parallel state
+if not(isempty(cache_par_auto))
+    % when non-empty, we already created ps
+        ps.Pool.AutoCreate = cache_par_auto;
 end
+
+end % Main Function
 
 %% ============ Helper Functions =============
 %----------------------
 %   localDisplayHeader
 %----------------------
-function localDisplayHeader(adp_opt)
+function localDisplayHeader(adp_opt, old_results)
     fprintf('\nRunning Temporal Difference with lambda=1 (aka double pass)\n')
     if adp_opt.parallel
         par_string = 'on';
     else
         par_string = 'off';
     end
-    if isempty(adp_opt.old_results) ...
-        || not(isfield(adp_opt.old_results, 'n_iter')) ...
-        || adp_opt.old_results.n_iter <=0
+    if isempty(old_results) ...
+            || not(isfield(old_results, 'n_iter')) ...
+            || old_results.n_iter <=0
         restart_string = '';
     else
         restart_string = ' added';
@@ -537,72 +677,6 @@ function localDisplayHeader(adp_opt)
 end
 
 %----------------------
-%%   InitVfun
-%----------------------
-function [adp_opt, vfun, iter_start] = InitVfun(adp_opt, problem)
-    % If no existing/old results
-    if isempty(adp_opt.old_results)
-        %--Setup value function from scratch
-        vfun_constructor = str2func(['fa' adp_opt.vfun_approx]);
-        %Create array of value functions. Reverse loop to pre-allocate size
-        for t = problem.n_periods+1:-1:1
-            %Note place holders for initial point and value lists
-            vfun(t) = vfun_constructor([],[], adp_opt.vfun_setup_params{:});
-            %Copy dimension names from state sets
-            vfun(t).PtDimNames = problem.state_set{t}.pt_dim_names;
-        end
-
-        iter_start = 0;
-
-    else %If existing value funtion exists, use it
-        if isfield(adp_opt.old_results, 'n_iter')
-            iter_start = adp_opt.old_results.n_iter;
-        else
-            iter_start = 0;
-        end
-
-        if adp_opt.verbose
-            if resume
-                fprintf('Resuming at iteration #%d\n', iter_start)
-            end
-            fprintf('Using (copy of) existing Value Function\n')
-        end
-        %Make a true, local copy of the value function (since they are handle
-        %objects. Otherwise, our additions will effect the stored results)
-        for t = problem.n_periods+1:-1:1
-            vfun(t) = copy(adp_opt.old_results.vfun(t));
-        end
-
-        %Simplify old_results to streamline our options structure
-        adp_opt.old_results = true;
-    end
-end
-
-%----------------------
-%   Seed Value Functions
-%----------------------
-function vfun = SeedValueFunctions(vfun, adp_opt, problem, results)
-    % If requested Initial Value function approximation using start_algorithm
-    start_alg = str2func(adp_opt.seed_vfun_init);
-
-    % Run the starting algorithm
-    if adp_opt.verbose
-        fprintf('Seeding value functions using %s', adp_opt.seed_vfun_init)
-    end
-    
-    %Configure to use existing value functions
-    % Note: structures are passed by value in MATLAB
-    results.vfun = vfun;
-    adp_opt.old_results = results;
-    adp_opt.vfun_update_in_place = true;    %Use existing value functions
-    
-    % Actually run the startup algorithm
-    seed_results = start_alg(problem, adp_opt);
-    vfun = seed_results.vfun;
-
-end
-
-%----------------------
 %   ForwardPassCore
 %----------------------
 function [decision, dec_contrib, post_s, fwd_val, pre_s_list, sim_contrib] ...
@@ -612,76 +686,6 @@ function [decision, dec_contrib, post_s, fwd_val, pre_s_list, sim_contrib] ...
 % "Insides" of ForwardPass to be shared by for & parfor loops
 
     %Setup iteration loop related storage
-    pre_s_list = NaN(problem.n_periods + 1, problem.dims.pre_state);
-    post_s = NaN(problem.n_periods + 1, problem.dims.post_state);
-    decision = NaN(problem.n_periods + 1, problem.dims.decision);
-
-    dec_contrib = NaN(1, problem.n_periods + 1);
-    sim_contrib = NaN(1, problem.n_periods + 1);
-    fwd_val = NaN(1, problem.n_periods + 1);
-
-    full_state = full_start;
-    pre_s_list(t_start, :) = pre_start;
-
-    for t = t_start:problem.n_periods
-        pre_s = pre_s_list(t, :);
-
-        %Select decision, associated decision contribution (in
-        %current t money) and (estimated) post-decision value (in t+1
-        %money)
-        if in_bootstrap && (t==t_start)
-            decision(t, :) = start_decision;
-            post_s(t, :) = start_post;
-        else
-            [decision(t, :), dec_contrib(t), post_s(t, :), fwd_val(t)] ...
-                = adp_opt.fn.OptimalDec(problem, t, pre_s, vfun(t), adp_opt);
-        end
-
-        % Simulate forward either by
-        %  -- realizing stochastic variables to advance from post_state
-        %      to the next pre_state
-        %   OR
-        %  -- using this decision to simulate the full_state (pre)
-        %      forward accounting for any stochasticity
-        % In both cases, both the pre_state the revised full_state must
-        % be returned, although the user is open to supplying
-        % placeholder or empty values if they are not required for a
-        % specific problem. In addition, the Sim function must compute
-        % the simulation portion of the contribution (decision portion
-        % of contribution computed with the OptimalDec)
-        %
-        % Note: the contribution values may be re-computed/updated/
-        % over-written if a FullSim function is provided.
-        [pre_s_list(t+1, :), sim_contrib(t), full_state]...
-            = adp_opt.fn.Sim(problem, t, decision(t, :), post_s(t, :), full_state);
-
-    end
-
-    %% ===== TERMINAL PERIOD (Forward Pass)
-    t = problem.n_periods + 1;
-    % Map predecision space to post decision space using a zero
-    % decision since no decisions to make in terminal period. This also
-    % results in on a single possible "post" decision state and
-    % corresponding forward pass estimated value so we can assign it
-    % directly
-    post_s(t, :)...
-        = adp_opt.fn.ApplyDscn(problem, pre_s_list(t, :), 0, t);
-    %Compute forward values
-    if isempty(adp_opt.fn.PostToVfun)
-        vfun_state_list = post_s(t, :);
-    else
-        vfun_state_list = adp_opt.fn.PostToVfun(problem, post_s(t, :), t);
-    end
-
-    if not(in_bootstrap)
-        fwd_val(t) = vfun(t).approx(vfun_state_list, adp_opt.vfun_approx_params{:});
-    end
-
-    % Now simulate to find the actual values
-    [~, sim_contrib(t), ~]...
-        = adp_opt.fn.Sim(problem, t, 0, post_s(t, :), full_state);
-    % Note: no need to set decision cost to zero, b/c it was already
-    % initialized that way.
 
 end
 

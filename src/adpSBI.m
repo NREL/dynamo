@@ -1,7 +1,7 @@
-function results = adpSBI(problem, adp_opt, post_vfun)
+function results = adpSBI(problem, adp_opt, old_results)
 % adpSBI Sampled Backward Induction for estimated ADP and intialization
 %
-% results = adpSBI(problem, adp_opt, post_vfun)
+% results = adpSBI(problem, adp_opt, old_results)
 %
 % Updated for dynamo problem definition structure
 % 
@@ -17,6 +17,8 @@ function results = adpSBI(problem, adp_opt, post_vfun)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  32  2017-06-15 06:04  BryanP      Reworked to use old_results rather than just post_vfun 
+%  31  2017-06-14 07:13  BryanP      Extract utilSetupVfun 
 %  30  2017-06-14 04:51  BryanP      Removed confusing old intro documentation (none is hopefully better than wrong) 
 %  29  2017-06-01 22:17  BryanP      BUGFIX: use full vector of zeros for all assignments for unspecified functions 
 %  28  2017-05-17 00:56  BryanP      BUGFIX: full vector of zeros when mapping afterdecision ops costs for unique states 
@@ -49,11 +51,15 @@ function results = adpSBI(problem, adp_opt, post_vfun)
 %   1  2012-03-07        BryanP      Pseudo-code
 
 %% ====== Handle Inputs =====
-%--- Handle ADP options
 if nargin < 2 || isempty(adp_opt)
     adp_opt = struct([]);
 end
 
+if nargin < 3 
+    old_results = [];
+end
+
+%--- Handle ADP options
 adp_defaults = {
                 %adpSampleBackInd specific settings
                 'sbi_state_samples_per_time'            100     % Number of state samples per time period
@@ -67,9 +73,6 @@ adp_defaults = {
                 'vfun_setup_params'     {'AutoExpand', true}
                 'vfun_approx_params'    {}
 
-                %decision function defaults
-                'decfun_params'         {}
-                
                 %uncertainty sampling defaults
                 'sample_opt'            {'sobol'}
                 
@@ -128,49 +131,27 @@ if length(adp_opt.sbi_uncertain_samples_per_post) < problem.n_periods+1
         adp_opt.sbi_uncertain_samples_per_post(end);
 end
 
-%-- Initialize POST decision value function (or use the one passed in)
-if nargin < 3 || isempty(post_vfun)
-    if adp_opt.verbose
-        fprintf('    Creating empty post-decision value functions (%s)\n', adp_opt.vfun_approx)
-    end
-
-    %Remove "empty post_vfun" to avoid type mismatch issues
-    clear('post_vfun')
-
-    %Setup one post decision value function object per time period
-    vfun_constructor = str2func(['fa' adp_opt.vfun_approx]);
-    for t = 1:problem.n_periods+1
-        % Note place holders for initial point and value lists
-        post_vfun(t) = vfun_constructor([],[], adp_opt.vfun_setup_params{:});
-        
-        % Copy names to value fuction 
-        post_vfun(t).PtDimNames = problem.state_set{t}.pt_dim_names;
-    end
-    
-    %Flag that we are NOT using old_results (post_vfun) in our options structure
-    adp_opt.old_results = false;
+%-- Manage old results and Initialize POST decision value function as needed 
+if isempty(old_results)
+    [post_vfun, adp_opt] = utilSetupVfun(problem, adp_opt);
+    results.log.sbi_runs = 1;
 else
-    if adp_opt.verbose
-        fprintf('    Using (copy of) existing post-decision Value Function\n')
+    [post_vfun, adp_opt] = utilSetupVfun(problem, adp_opt, old_results.post_vfun);
+    if isfield(old_results, 'log')
+        results.log = old_results.log;
     end
-    %Make a true, local copy of the value function (since they are handle
-    %objects. Otherwise, our additions will effect the stored results)
-    for t_idx = problem.n_periods+1:-1:1
-        post_vfun(t_idx) = copy(post_vfun(t_idx));
-    end
-
-    %Flag that we are using old_results (post_vfun) in our options structure
-    adp_opt.old_results = true;
+    if not(isfield(results.log, 'sbi_runs'))
+        results.log.sbi_runs = 1;
+    else
+        results.log.sbi_runs = results.log.sbi_runs + 1;
+    end    
 end
 
-%-- Determine the dimensions (length) for states
-ndim.pre = zeros(1, problem.n_periods+1);
-ndim.post = zeros(1, problem.n_periods+1);
-for t = 1:problem.n_periods+1
-    ndim.pre(t) = problem.state_set{1}.N_dim;
-    %TODO: actually determine post decision size
-    ndim.post(t) = ndim.pre(t);
-end
+%---- Initial results and log entries
+results.post_vfun = post_vfun;
+results.adp_opt = adp_opt;
+results.first_decision = NaN;
+results.objective = NaN;
 
 %% ====== Sampled Backward Induction Algorithm =====
 %% --- Sample terminal states (T+1) ---
@@ -408,6 +389,7 @@ for t = problem.n_periods:-1:1
     %Gather contributions for this set of next_pre_states
 
     %>>>       compute before decision operations costs
+    %TODO: Include option to parallelize operations
     if (t < n_periods) && not(isempty(problem.fOpsBeforeDecision))
         % Compute unique ops costs, using internal Ops loop
         before_dec_ops = problem.fOpsBeforeDecision(params_only, t+1, next_pre_list);
