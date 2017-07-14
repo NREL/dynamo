@@ -123,8 +123,8 @@ classdef rpDiscreteSample < RandProcess
 
     % Internal properties
     properties (Access='protected')
-        Vlist = {};    % cell row vector of values
-        Plist = {};    % cell row vector of probabilities
+        Values = {};    % cell row vector of values
+        Prob = {};      % cell row vector of (unconditional) probabilities
 
         CdfList = {};   % cumulative distribution for each time period
         Tmax = 1;       % Largest time with specified distribution
@@ -137,8 +137,8 @@ classdef rpDiscreteSample < RandProcess
             % Support zero parameter calls to constructor for special
             % MATLAB situations (see help files)
             if nargin == 0
-                obj.Vlist = v_list;
-                obj.Plist = p_list;
+                obj.Values = v_list;
+                obj.Prob = p_list;
             end
             
             %-- Extract dimensional data
@@ -151,25 +151,25 @@ classdef rpDiscreteSample < RandProcess
             % If probabilites not provided, assume uniform across all
             % values
             if nargin < 2
-                obj.Plist = cell(size(v_list));
+                obj.Prob = cell(size(v_list));
                 for t_idx = 1:obj.Tmax
                     num_states = size(v_list{t_idx},1);
-                    obj.Plist{t_idx} = ones(num_states,1) ./ num_states;
+                    obj.Prob{t_idx} = ones(num_states,1) ./ num_states;
                 end
 
             else
-                obj.Plist = p_list;
+                obj.Prob = p_list;
             end
             
             % Store state value list
-            obj.Vlist = v_list;
+            obj.Values = v_list;
 
 
             % Loop through time for setting up additional parameters
             for t_idx = 1:obj.Tmax
                 %Create Cumulative distribution function for easier
                 %mapping of random samples
-                obj.CdfList{t_idx} = cumsum(obj.Plist{t_idx});
+                obj.CdfList{t_idx} = cumsum(obj.Prob{t_idx});
 
                 %Check for valid probability vectors 
                 %  Probability must sum to 1
@@ -178,7 +178,7 @@ classdef rpDiscreteSample < RandProcess
                 end
 
                 %  Must be same size as value list
-                if size(obj.Plist{t_idx}) ~= size(obj.Vlist{t_idx})
+                if size(obj.Prob{t_idx}) ~= size(obj.Values{t_idx})
                     error('rpDiscreteSample:ValProbMismatch', 'Value & Probability vectors must have equal size for time=%d', t_idx)
                 end
             end
@@ -211,7 +211,7 @@ classdef rpDiscreteSample < RandProcess
             for samp_idx = 1:N
                 idx_at_t(samp_idx) = find(rand(1) <= obj.CdfList{t}, 1, 'first');
             end
-            state_list = obj.Vlist{t}(idx_at_t,:);
+            state_list = obj.Values{t}(idx_at_t,:);
         end
 
         %% ===== Support for discrete usage
@@ -232,7 +232,7 @@ classdef rpDiscreteSample < RandProcess
             if nargin < 2 || isempty(t)
                 state_list = obj.dlist(obj.t);
             elseif (ischar(t) && strcmp(t, 'all'))
-                state_list = unique(cell2mat(obj.Vlist'),'rows');
+                state_list = unique(cell2mat(obj.Values'),'rows');
             else
                 state_list = obj.state_info(t);
             end
@@ -381,7 +381,7 @@ classdef rpDiscreteSample < RandProcess
             end
 
             if ischar(t) && strcmp(t, 'all')
-                state_list_to_range = cell2mat(obj.Vlist');
+                state_list_to_range = cell2mat(obj.Values');
             else
                 %Handle any non-integer or large values
                 t = min(floor(t), obj.Tmax);
@@ -389,7 +389,7 @@ classdef rpDiscreteSample < RandProcess
                 if t < 1
                     error('RandProcess:InvalidTime', 'Only t>=1 valid for rpDiscreteSample')
                 else
-                    state_list_to_range = obj.Vlist{t};
+                    state_list_to_range = obj.Values{t};
                 end
             end
             value_range = [min(state_list_to_range); max(state_list_to_range)];
@@ -440,7 +440,7 @@ classdef rpDiscreteSample < RandProcess
             % state_ok = rand_proc_object.checkState(t, state)
             %       No error, simply return true/false if state is
             %       valid/not
-            state_ok = not(isempty(state)) && ismember(state, obj.Vlist{t}, 'rows');
+            state_ok = not(isempty(state)) && ismember(state, obj.Values{t}, 'rows');
             
             if nargout == 0 && not(state_ok)
                 error('RandProcess:InvalidState', 'State %s is not valid at time %d', state, t)
@@ -463,8 +463,8 @@ classdef rpDiscreteSample < RandProcess
                 t = min(t, obj.Tmax);
                 
                 %if we get here, we know the time is valid
-                state_list = obj.Vlist{t};
-                prob = obj.Plist{t};
+                state_list = obj.Values{t};
+                prob = obj.Prob{t};
             end
         end
         
