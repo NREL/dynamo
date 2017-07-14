@@ -1,7 +1,4 @@
-classdef rpLattice < RandProcess
-
-% WARNING--DO NOT USE. Not updated for latest RandProcess styles
-    
+classdef rpLattice < RandProcess  
 %rpLattice bi/multi-nomial lattice random process: Geometric Brownian Motion
 %
 % Random process that models a discrete random walk with constant geometric
@@ -14,7 +11,7 @@ classdef rpLattice < RandProcess
 %  Start:  starting value
 %  Coef: vector of growth coeficients
 %  Prob:   vector of corresponding coefficients
-%  MaxT: maximum time for lattice (starting from t=0)
+%  MaxT: maximum time for lattice (starting from t=1)
 % Optional inputs/properties:
 %  Tol:  rounding tolerance for combining states (default = 0.0001)
 %
@@ -27,24 +24,25 @@ classdef rpLattice < RandProcess
 %  - For t>MaxT, the lattice is assumed to remain constant with no more
 %    transitions
 %
-% see also RandProc, rpDiscreteSample, rpMarkov, rpList
+% see also rpPathDepend, RandProc, rpDiscreteSample, rpMarkov, rpBasic
 %
 % originally by Bryan Palmintier 2010
 
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
-%   1  2010-12-16 14:30  BryanP      Adapted from rpList v6
-%   2  2010-12-15 23:30  BryanP      Added t_max for dlist(... 'all')
-%   3  2010-12-21 21:20  BryanP      Made Tmax required in constructor, etc
-%   4  2010-12-23 15:45  BryanP      Implemented buildLattice & dlist*
-%   5  2011-01-04 22:00  BryanP      Complete, working version
-%   6  2011-03-12 12:45  BryanP      Reordered set.Coef & Prob to work with save/load
-%   7  2011-06-09 16:00  BryanP      match input shape for dnum2val and dval2num
-%   8  2011-11-09 23:40  BryanP      Added tolerance to constructor
-%   9  2012-01-11 17:00  BryanP      Added constant non-walk for t>Tmax
-%  10  2012-01-25 13:45  BryanP      Allow blank constructor input for loading from a file
+%  12  2017-07-13 21:17  BryanP      Update for new RandProc format
 %  11  2012-04-17 08:55  BryanP      Reworked cdf for sim/sample
+%  10  2012-01-25 13:45  BryanP      Allow blank constructor input for loading from a file
+%   9  2012-01-11 17:00  BryanP      Added constant non-walk for t>Tmax
+%   8  2011-11-09 23:40  BryanP      Added tolerance to constructor
+%   7  2011-06-09 16:00  BryanP      match input shape for dnum2val and dval2num
+%   6  2011-03-12 12:45  BryanP      Reordered set.Coef & Prob to work with save/load
+%   5  2011-01-04 22:00  BryanP      Complete, working version
+%   4  2010-12-23 15:45  BryanP      Implemented buildLattice & dlist*
+%   3  2010-12-21 21:20  BryanP      Made Tmax required in constructor, etc
+%   2  2010-12-15 23:30  BryanP      Added t_max for dlist(... 'all')
+%   1  2010-12-16 14:30  BryanP      Adapted from rpList v6
 
     properties
         Start = [];   % initial value
@@ -52,23 +50,18 @@ classdef rpLattice < RandProcess
         Prob = [];    % vector of probabilities
         Tol = 0.0001; % rounding tolerance for merging states
         Tmax = 0;     % maximum time for which to compute the lattice
-        t = 0;        % Current time
+        t = 1;        %current timestep
+
     end
 
     % Internal properties
     properties (Access='protected')
         LatticeValue = {}  %Cell array of precomputed values for each t
         LatticeProb  = {}  %Cell array of precomuted probabilities at t
-        LatticeSNum = {}   %Cell array of precomputed state numbers for each t
-
-        ValueMap = []    %List of unique values in lattice, index provides state number
-
-        cur_state = NaN    %Current state number for simulation
 
         %Flags
         SkipLatticeBuild = false    %Wait till all values set before building the lattice
         SuppressLengthError = false %Prevent coef & prob length checks when changing both
-
     end
 
     methods (Access = protected)
@@ -125,17 +118,6 @@ classdef rpLattice < RandProcess
                 obj.LatticeProb{idx} = obj.LatticeProb{idx}/sum(obj.LatticeProb{idx});
 
             end
-
-            % -- Now compute the list of possible values
-            % Note: the corresponding state number is simply its vector
-            % index
-            obj.ValueMap = unique(vertcat(obj.LatticeValue{:}));
-
-            % -- And store the state list matrix
-            for idx=1:(obj.Tmax+1)
-                obj.LatticeSNum{idx} = obj.dval2num(obj.LatticeValue{idx});
-            end
-
         end
     end
 
@@ -153,6 +135,7 @@ classdef rpLattice < RandProcess
                     otherwise
                         obj.setparams(start, coef, prob);
                 end
+            obj.reset();
             end
         end
 
@@ -188,8 +171,6 @@ classdef rpLattice < RandProcess
 
             % Reenable coef & prob length checking
             obj.SuppressLengthError = false;
-
-            obj.reset()
         end
 
 
@@ -217,7 +198,7 @@ classdef rpLattice < RandProcess
             end
 
             %convert to column vector if needed
-            if size(c, 2) ~= 1;
+            if isrow(c)
                 c = c';
             end
             obj.Coef = c;
@@ -230,7 +211,7 @@ classdef rpLattice < RandProcess
             if not(obj.SuppressLengthError) %#ok<MCSUP>
                 if length(c) ~= length(obj.Prob) %#ok<MCSUP>
                         %Allow empty for loading Lattice objects from *.mat files
-                        if not(isempty(c)) && not(isempty(obj.Prob))
+                        if not(isempty(c)) && not(isempty(obj.Prob)) %#ok<MCSUP> OK b/c we explicitly check for empty (unset) values
                             error('rpLattice:CoefProbMismatch', ...
                                 'Coefficient and Probability vectors must have equal length')
                         end
@@ -253,7 +234,7 @@ classdef rpLattice < RandProcess
             end
 
             %convert to column vector if needed
-            if size(p, 2) ~= 1;
+            if isrow(p)
                 p = p';
             end
             obj.Prob = p;
@@ -265,8 +246,11 @@ classdef rpLattice < RandProcess
             % successful saves & loads.
             if not(obj.SuppressLengthError) %#ok<MCSUP>
                 if length(p) ~= length(obj.Coef) %#ok<MCSUP>
-                    error('rpLattice:CoefProbMismatch', ...
-                        'Probability and Coefficient vectors must have equal length')
+                    %Allow empty for loading Lattice objects from *.mat files
+                    if not(isempty(p)) && not(isempty(obj.Coef)) %#ok<MCSUP> OK b/c we explicitly check for empty (unset) values
+                        error('rpLattice:CoefProbMismatch', ...
+                            'Coefficient and Probability vectors must have equal length')
+                    end
                 end
             end
 
@@ -282,8 +266,8 @@ classdef rpLattice < RandProcess
 
         % Check that we set a valid t
         function set.t(obj, t)
-            if t < 0;
-                error('RandProcess:InvalidTime', 'time (t) must be positive')
+            if t < 1
+                error('RandProcess:InvalidTime', 'time (t) must be strictly positive')
             else
                 if obj.t ~= t
                     obj.t = t;
@@ -291,8 +275,8 @@ classdef rpLattice < RandProcess
                     %Now set the current state to the middle state for this
                     %time and limit the value to Tmax
                     t = min(floor(t),obj.Tmax); %#ok<MCSUP>
-                    s_idx = ceil(length(obj.LatticeSNum{t+1})/2); %#ok<MCSUP>
-                    obj.cur_state = obj.LatticeSNum{t+1}(s_idx); %#ok<MCSUP>
+                    s_idx = ceil(length(obj.LatticeSNum{t+1})/2);
+                    obj.cur_state = obj.LatticeSNum{t+1}(s_idx);
                 end
             end
         end
@@ -302,77 +286,68 @@ classdef rpLattice < RandProcess
         % These need to be defined even for continuous processes, for
         % compatability with DP.
 
-        function [value_list, state_n_list] = dlist (obj, t)
+        function state_list = dlist (obj, t)
         % DLIST List possible discrete states
         %
         % List possible discrete states by number for given time
         % if t is not listed, the states for the current simulation time
         % are returned.
         %
-        % To get a list of all possible states pass with t='all', in which
-        % case, t_max is REQUIRED to bound the problem size.
+        % To get a list of all possible states pass with t='all'
             if nargin < 2 || isempty(t)
-                [value_list, state_n_list] = obj.dlist(obj.t);
+                state_list = obj.dlist(obj.t);
             elseif (ischar(t) && strcmp(t, 'all'))
-                value_list = obj.ValueMap;
-                state_n_list = 1:length(obj.ValueMap);
-            elseif t < 0;
-                error('RandProcess:InvalidTime', 'Only t>0 valid for rpLattice')
+                state_list = obj.ValueMap;
+            elseif t < 1
+                error('RandProcess:InvalidTime', 'Only t>1 valid for rpLattice')
             else
                 t = min(obj.Tmax, t);
-                value_list = obj.LatticeValue{t+1};
-                state_n_list = obj.dval2num(value_list);
+                state_list = obj.LatticeValue{t+1};
             end
         end
 
-        function [value_list, state_n_list, prob] = dlistprev (obj, state_n, t )
+        function [state_list, prob] = dlistprev (obj, state_in, t )
         % DLISTPREV List previous discrete states & probabilities
         %
-        % List possible previous states (by number) along with conditional
+        % List possible previous states along with conditional
         % probability P(s_{t-1} | s_t)
         %
         % If t is not defined, the current simulation time is assumed
             if nargin < 3
                 if nargin < 2
-                    state_n = obj.cur_state;
+                    state_in = obj.cur_state;
                 end
-                [value_list, state_n_list, prob] = obj.dlistprev(state_n, obj.t);
+                [state_list, prob] = obj.dlistprev(state_in, obj.t);
                 return
-            elseif t <= 0;
-                error('RandProcess:InvalidTime', 'Only t>0 valid for rpLattice')
+            elseif t <= 1
+                error('RandProcess:InvalidTime', 'Only t>1 valid for rpLattice')
             end
 
             %find a valid time for state lookup, by limiting to Tmax
             t_lookup = min(t, obj.Tmax);
 
-            if isempty(state_n) ...
-                    || state_n > length(obj.ValueMap) ...
-                    || not(all(ismember(obj.ValueMap(state_n),obj.LatticeValue{t_lookup+1})))
-                error('RandProcess:InvalidState', 'State #%d not valid at time=%d', state_n, t)
+            if isempty(state_in) ...
+                    || not(all(ismembertol(state_in,obj.LatticeValue{t_lookup+1}, obj.Tol)))
+                error('RandProcess:InvalidState', 'State %g not valid at time=%d', state_in, t)
             else
                 %if we get here, we know the state is valid for this time
 
                 if t > obj.Tmax
-                    value_list = obj.ValueMap(state_n);
+                    state_list = state_in;
                 else
 
                     % Build previous value list by reversing the multiplication
                     % by coef required to get there
-                    value_list = RoundTo(obj.ValueMap(state_n) ./ obj.Coef, obj.Tol);
+                    state_list = RoundTo(obj.ValueMap(state_in) ./ obj.Coef, obj.Tol);
 
                     % For values near the "edge" not all of the possible priors
                     % from this division are actually valid states during the
                     % previous period, so limit our seach to those that are.
                     % Note: that the index t, corresponds to t-1 b/c 1-indexed
-                    [value_list, coef_used, states] = intersect(value_list, obj.LatticeValue{t});
+                    [state_list, coef_used, states] = intersect(state_list, obj.LatticeValue{t});
                 end
 
-                if nargout >1
-                    %Now we have enough information to return the state list
-                    state_n_list = obj.dval2num(value_list);
-                end
-
-                if nargout > 2
+                if nargout > 1
                     if t > obj.Tmax
                         prob = 1;
                     else
@@ -391,47 +366,41 @@ classdef rpLattice < RandProcess
             end
         end
 
-        function [value_list, state_n_list, prob] = dlistnext (obj, state_n, t )
+        function [state_list, prob] = dlistnext (obj, state_in, t )
         % DLISTNEXT List next discrete states & probabilities
         %
         % List possible next states (by number) along with conditional
         % probability P(s_{t+1} | s_t)
         %
-        % If t and/or state_n are not defined, the current simulation time
+        % If t and/or state are not defined, the current simulation time
         % and state are assumed
             if nargin < 3
-                [value_list, state_n_list, prob] = obj.dlistnext(state_n, obj.t);
+                [state_list, prob] = obj.dlistnext(state_in, obj.t);
                 return
-            elseif t < 0;
+            elseif t < 1
                 error('RandProcess:InvalidTime', 'Only t>0 valid for rpLattice')
             end
 
             %find a valid time for state lookup, by limiting to Tmax
             t_lookup = min(t, obj.Tmax);
 
-            if isempty(state_n) ...
-                    || state_n > length(obj.ValueMap) ...
-                    || not(all(ismember(obj.ValueMap(state_n),obj.LatticeValue{t_lookup+1})))
-                error('RandProcess:InvalidState', 'State #%d not valid at time=%d', state_n, t)
+            if isempty(state_in) ...
+                    || not(all(ismembertol(state_in,obj.LatticeValue{t_lookup+1}, obj.Tol)))
+                error('RandProcess:InvalidState', 'State %g not valid at time=%d', state_in, t)
             else
                 %if we get here, we know the state is valid for this time
 
-                if t > obj.Tmax -1
-                    value_list = obj.ValueMap(state_n);
+                if t > obj.Tmax
+                    state_list = obj.ValueMap(state_in);
                 else
                     % Build next value list by multiplying
                     % by coef required to get there
-                    value_list = RoundTo(obj.ValueMap(state_n) .* obj.Coef, obj.Tol);
-                end
-
-                if nargout >1
-                    %Now we have enough information to return the state list
-                    state_n_list = obj.dval2num(value_list);
+                    state_list = RoundTo(state_in .* obj.Coef, obj.Tol);
                 end
 
                 if nargout > 2
                     %Here the probability is easy... it is either
-                    if t > obj.Tmax -1
+                    if t > obj.Tmax
                         %one or
                         prob = 1;
                     else
@@ -442,36 +411,8 @@ classdef rpLattice < RandProcess
             end
         end
 
-        function values = dnum2val (obj, state_n_list )
-        % DNUM2VAL Convert discrete state number to a value
-            try
-                values = obj.ValueMap(state_n_list);
-            catch exception
-                bad = find(or(state_n_list > length(obj.ValueMap), state_n_list < 1), 1);
-                error('rpLattice:InvalidStateNum', ...
-                    'Attempt to find value for invalid state nums: %d', ...
-                    state_n_list(bad))
-            end
-            if size(values) ~= size(state_n_list)
-                values = reshape(values, size(state_n_list));
-            end
-        end
-
-        function state_n_list = dval2num (obj, values )
-        % DVAL2NUM Convert the value(s) to associate discrete state numbers
-            try
-                state_n_list = arrayfun(@(x) find(obj.ValueMap == x, 1), values);
-            catch exception
-                bad = find(not(ismember(values, obj.ValueMap)), 1);
-                error('rpLattice:InvalidValue', ...
-                    'Attempt to find state number for invalid value: %g', ...
-                    values(bad))
-            end
-            if size(values) ~= size(state_n_list)
-                state_n_list = reshape(state_n_list, size(values));
-            end
-        end
-
+%EDIT Marker
+        
         function [value_series, state_n_series] = dsim(obj, t_list, initial_value)
         % DSIM Simulate discrete process.
         %
@@ -561,7 +502,7 @@ classdef rpLattice < RandProcess
             end
 
             %Handle state numbers if required
-            if nargout > 1;
+            if nargout > 1
                 state_n_series = zeros(size(value_series));
                 state_n_series(not(ok)) = NaN;
                 state_n_series(ok) = obj.dval2num(value_series(ok));
@@ -657,31 +598,31 @@ classdef rpLattice < RandProcess
                         trans_prob = cumsum(obj.Prob);
                         for t = floor(obj.t):(floor(new_t)-1)
                             if t >= obj.Tmax
-                                value_list = obj.ValueMap(obj.cur_state);
+                                state_list = obj.ValueMap(obj.cur_state);
                                 new_idx = 1;
                             else
                                 %Extract possible next states (discrete)
-                                value_list = RoundTo(obj.ValueMap(obj.cur_state) .* obj.Coef, obj.Tol);
+                                state_list = RoundTo(obj.ValueMap(obj.cur_state) .* obj.Coef, obj.Tol);
 
                                 % Randomly select the new state based on the cdf
                                 % described by the prob vector (computed using cumsum)
                                 new_idx = find(rand<=trans_prob, 1, 'first');
-                                obj.cur_state = obj.dval2num(value_list(new_idx));
+                                obj.cur_state = obj.dval2num(state_list(new_idx));
                             end
                         end
                     else
                         %Step backward
                         for t = floor(obj.t):-1:(floor(new_t)+1)
                             %Extract possible previous states (discrete)
-                            [value_list, state_n_list, prob] = obj.dlistprev(obj.cur_state, t );
+                            [state_list, REMOVE_state_n_list, prob] = obj.dlistprev(obj.cur_state, t );
 
                             % Randomly select the new state based on the cdf
                             % described by the prob vector (computed using cumsum)
                             new_idx = find(rand <= cumsum(prob), 1, 'first');
-                            obj.cur_state = state_n_list(new_idx);
+                            obj.cur_state = REMOVE_state_n_list(new_idx);
                         end
                     end
-                    value = value_list(new_idx);
+                    value = state_list(new_idx);
                     state_n = obj.cur_state;
                 end
 

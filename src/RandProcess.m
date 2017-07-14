@@ -37,10 +37,11 @@ classdef RandProcess < AbstractSet
         % These need to be defined even for continuous processes, for
         % compatability with DP.
         %
-        % IMPORTANT: all processes must have a single, starting state for t=0
+        % IMPORTANT: all processes must have a single, starting state for
+        % t=1
         % DLIST List possible discrete states
         %
-        % List possible discrete states by number for given time
+        % List possible discrete states for given time
         % if t is not listed, the states for the current simulation time
         % are returned.
         %
