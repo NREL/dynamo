@@ -18,7 +18,7 @@ classdef rpLattice < RandProcess
 % Notes:
 %  - Integer timesteps are assumed, scale accordingly for fractional
 %    timesteps
-%  - start is the value at t=0
+%  - start is the value at t=1
 %  - For non-integer times, the output is assumed to remain at the value
 %    corresponding to the previous integer time step (Zero-order hold)
 %  - For t>MaxT, the lattice is assumed to remain constant with no more
@@ -31,7 +31,8 @@ classdef rpLattice < RandProcess
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
-%  12  2017-07-13 21:17  BryanP      Update for new RandProc format
+%  13  2017-07-14 05:48  BryanP      Only support value states 
+%  12  2017-07-13 21:17  BryanP      Initial Update for new RandProc format
 %  11  2012-04-17 08:55  BryanP      Reworked cdf for sim/sample
 %  10  2012-01-25 13:45  BryanP      Allow blank constructor input for loading from a file
 %   9  2012-01-11 17:00  BryanP      Added constant non-walk for t>Tmax
@@ -57,8 +58,10 @@ classdef rpLattice < RandProcess
     % Internal properties
     properties (Access='protected')
         LatticeValue = {}  %Cell array of precomputed values for each t
-        LatticeProb  = {}  %Cell array of precomuted probabilities at t
-
+        LatticeUncondProb  = {}  %Cell array of precomuted (unconditional) probabilities at t
+        LatticeUncondCdf  = {}   %Cell array of precomuted (unconditional) cdfs at t
+        ConditionalCdf = [];          %precomputed conditional probability (based on Prob)
+        
         %Flags
         SkipLatticeBuild = false    %Wait till all values set before building the lattice
         SuppressLengthError = false %Prevent coef & prob length checks when changing both
@@ -68,9 +71,8 @@ classdef rpLattice < RandProcess
         %Reset the stored Lattice
         function clearStoredLattice(obj)
             obj.LatticeValue = {obj.Start};
-            obj.LatticeSNum = {1};
-            obj.LatticeProb = {1};
-            obj.ValueMap = 1;
+            obj.LatticeUncondProb = {1};
+            obj.LatticeUncondCdf = {1};
         end
 
         %Build & cache the lattice
@@ -79,19 +81,25 @@ classdef rpLattice < RandProcess
                 return
             end
             % -- Build the value lattice.
+            %compute conditional cdf here to avoid parameter
+            %cross-reference issues
+            obj.ConditionalCdf = cumsum(obj.Prob);
+
             %Starting with the initial value
             obj.LatticeValue = {obj.Start};
-            obj.LatticeProb = {1};
+            obj.LatticeUncondProb = {1};
+            obj.LatticeUncondCdf = {1};
             %Then cycling through future time scenarios
             for idx=2:(obj.Tmax+1)
                 % Compute next lattice state by
                 % 1) multiplying the previous set of states by the
-                % coefficient matrix to form an array
+                % coefficient matrix to form an array & compute
+                % corresponding unconditional probability (for sampling)
                 %Implementation Note: have to put coef first, otherwise,
                 %the first multiplication creates a row vector and unique
                 %does not change it back to a column vector.
                 obj.LatticeValue{idx} = obj.Coef * obj.LatticeValue{idx-1}';
-                obj.LatticeProb{idx} = obj.Prob * obj.LatticeProb{idx-1}';
+                obj.LatticeUncondProb{idx} = obj.Prob * obj.LatticeUncondProb{idx-1}';
 
                 % 2) rounding these values to make sure that states merge
                 % Note: the RoundTo function is part of the adp toolbox
@@ -103,7 +111,7 @@ classdef rpLattice < RandProcess
                 % Note: in reshape, the [] will compute the required number
                 % of rows.
                 obj.LatticeValue{idx} = reshape(obj.LatticeValue{idx},[],1);
-                obj.LatticeProb{idx} = reshape(obj.LatticeProb{idx},[],1);
+                obj.LatticeUncondProb{idx} = reshape(obj.LatticeUncondProb{idx},[],1);
 
                 % 4) Using unique() to return an ordered vector of unique
                 % values.
@@ -112,11 +120,13 @@ classdef rpLattice < RandProcess
                 % 5) Use the indices (idx_list) to locate the corresponding
                 % probabilities and then sum the combined probabilities
                 % using accumarray
-                obj.LatticeProb{idx} = accumarray(idx_list, obj.LatticeProb{idx});
+                obj.LatticeUncondProb{idx} = accumarray(idx_list, obj.LatticeUncondProb{idx});
 
                 % 6) Normalize the probability so we are sure to sum to 1
-                obj.LatticeProb{idx} = obj.LatticeProb{idx}/sum(obj.LatticeProb{idx});
-
+                obj.LatticeUncondProb{idx} = obj.LatticeUncondProb{idx}/sum(obj.LatticeUncondProb{idx});
+                
+                % 7) Compute corresponding unconditional cdf
+                obj.LatticeUncondCdf{idx} = cumsum(obj.LatticeUncondProb{idx});
             end
         end
     end
@@ -124,6 +134,8 @@ classdef rpLattice < RandProcess
     methods
         %% ===== Constructor & related
         function obj = rpLattice(start, coef, prob, t_max, tol)
+            % Note: see rpLattice class documentation (above) for more info
+            %
             % Support zero parameter calls to constructor for special
             % MATLAB situations (see help files)
             if nargin > 0
@@ -282,6 +294,45 @@ classdef rpLattice < RandProcess
         end
 
 
+        %% == Additional public methods
+        function state_list = sample(obj, N, t, cur_state)
+        %SAMPLE draw state samples for the given time and (current) state
+        %
+        % Usage:
+        %   state_list = disc_samp_object.sample()
+        %       One sample state from current time, using conditional
+        %       probability for current_state
+        %   state_list = sample(obj, N)
+        %       Return N samples
+        %   state_list = sample(obj, N, t)
+        %       Specify time and sample based on unconditional probability
+        %       across all valid states for t
+        %   state_list = sample(obj, N, t, cur_state)
+        %       Sample specified time using conditional probability
+        %       starting from provided state
+ 
+            if nargin < 2
+                N = 1;
+            end
+            
+            if nargin < 3 || isempty(t)
+                t=obj.t;
+            end
+            
+            if nargin < 4 || isempty(cur_state)
+                cur_state=obj.cur_state;
+            end
+            
+            %Handle any non integer or large values for time
+            t = min(floor(t), obj.Tmax);
+
+            idx_at_t = zeros(N,1);
+            for samp_idx = 1:N
+                idx_at_t(samp_idx) = find(rand(1) <= obj.CdfList{t}, 1, 'first');
+            end
+            state_list = obj.Vlist{t}(idx_at_t,:);
+        end
+        
         %% ===== Support for discrete usage
         % These need to be defined even for continuous processes, for
         % compatability with DP.
@@ -359,7 +410,7 @@ classdef rpLattice < RandProcess
                         % But rather than explicitly computing P{s_t}, simply
                         % normalize by dividing by the sum of the probabilities
                         % which is equivalent.
-                        prob = obj.Prob(coef_used) .* obj.LatticeProb{t}(states);
+                        prob = obj.Prob(coef_used) .* obj.LatticeUncondProb{t}(states);
                         prob = prob/sum(prob);
                     end
                 end
@@ -411,9 +462,7 @@ classdef rpLattice < RandProcess
             end
         end
 
-%EDIT Marker
-        
-        function [value_series, state_n_series] = dsim(obj, t_list, initial_value)
+        function value_series = dsim(obj, t_list, initial_value)
         % DSIM Simulate discrete process.
         %
         % A column vector for t is assumed to be a series of times for
@@ -423,13 +472,13 @@ classdef rpLattice < RandProcess
         % order times will be sorted before simulation and duplicate times
         % will return the same result
         %
-        % Invalid times (t<0 or t>Tmax) return NaN
+        % Invalid times (t<1 or t>Tmax) return NaN
         %
         % Note: after calling dsim, the process internal time will be set to
         % the final value of t_list
 
             %identify simulation time classes
-            ok = (t_list >= 0);
+            ok = (t_list > 0);
             above_Tmax = t_list > obj.Tmax;
             ok_below_Tmax = ok & not(above_Tmax);
 
@@ -452,13 +501,14 @@ classdef rpLattice < RandProcess
                 %if we are given an initial value, check that it is valid
                 %for the given minimum simulation time and start there
                 if nargin >= 3 && not(isempty(initial_value))
-                    cur_idx = find(initial_value == obj.LatticeValue{t_min+1}, 1);
+                    initial_value = RoundTo(initial_value, obj.Tol);
+                    cur_idx = find(initial_value == obj.LatticeValue{t_min}, 1);
                     if isempty(cur_idx)
                         error('rpLattice:InvalidValueAtTime', ...
                             'Initial value, %g, not valid at first time, %d', ...
                             initial_value, t_min)
                     end
-                    obj.cur_state = obj.LatticeSNum{t_min+1}(cur_idx);
+                    obj.cur_state = initial_value;
                 else
                     %if all simulation times are after our current time, use the
                     %current state and time as a starting point, but if not, reset
@@ -474,7 +524,7 @@ classdef rpLattice < RandProcess
                 %initialize output vectors
                 t_sim = t_min:t_max;
                 %make sure we match the required output vector shape
-                if size(t_list,2) == 1
+                if isrow(t_list)
                     t_sim = t_sim';
                 end
 
@@ -484,7 +534,7 @@ classdef rpLattice < RandProcess
                 trans_cdf = cumsum(obj.Prob);
 
                 %store initial time step
-                v_sim(1) = obj.dnum2val(obj.cur_state);
+                v_sim(1) = obj.cur_state;
                 %simulate future timesteps
                 for idx = 2:length(t_sim)
                     trans = find(rand() <= trans_cdf, 1, 'first');
@@ -498,19 +548,13 @@ classdef rpLattice < RandProcess
 
                 obj.t = t_ok(end);
                 value_series_ok = value_series(ok);
-                obj.cur_state = obj.dval2num(value_series_ok(end));
+                obj.cur_state = value_series_ok(end);
             end
 
-            %Handle state numbers if required
-            if nargout > 1
-                state_n_series = zeros(size(value_series));
-                state_n_series(not(ok)) = NaN;
-                state_n_series(ok) = obj.dval2num(value_series(ok));
-            end
         end
 
         %% ===== General (discrete or continuous) Methods
-        function [value_series, state_n_series] = sim(obj, t_list, initial_value)
+        function value_series = sim(obj, t_list, initial_value)
         % SIM Simulate process for desired (continuous) times
         %
         % A column vector for t is assumed to be a series of times for
@@ -518,7 +562,7 @@ classdef rpLattice < RandProcess
         % needed. The initial value is not returned in the value series.
         %
         % Function must handle arbitrary positive values for t_list
-        % Invalid times (t<=0) return NaN
+        % Invalid times (t<=1) return NaN
         %
         % Note: after calling sim, the process internal time will be set to
         % the final value of t_list
@@ -528,15 +572,11 @@ classdef rpLattice < RandProcess
             if nargin < 3
                 initial_value = [];
             end
-            if nargout == 1
-                value_series = obj.dsim(floor(t_list), initial_value);
-            else
-                [value_series, state_n_series] = obj.dsim(floor(t_list), initial_value);
-            end
+            value_series = obj.dsim(floor(t_list), initial_value);
 
         end
 
-        function [value_range, state_n_range] = range(obj, t)
+        function value_range = range(obj, t)
         % RANGE Find value range for given time
         %
         % Returns vector with [min max] value range for specified time
@@ -549,27 +589,23 @@ classdef rpLattice < RandProcess
             end
 
             if ischar(t) && strcmp(t, 'all')
-                value_range = [obj.ValueMap(1), obj.ValueMap(end)];
-                state_n_range = [1, length(obj.ValueMap)];
+                value_range = [min(vertcat(obj.LatticeValue{:})), max(vertcat(obj.LatticeValue{:}))];
             else
                 %Handle any non integer values
                 t = floor(t);
 
-                if t < 0;
-                    error('RandProcess:InvalidTime', 'Only t>0 valid for rpLattice')
+                if t < 1
+                    error('RandProcess:InvalidTime', 'Only t>=1 valid for rpLattice')
                 end
 
                 t = min(t, obj.Tmax);
-                value_range = [min(obj.LatticeValue{t+1}), max(obj.LatticeValue{t+1})];
-                if nargout > 1
-                    state_n_range = obj.dval2num(value_range);
-                end
+                value_range = [min(obj.LatticeValue{t}), max(obj.LatticeValue{t})];
             end
         end
 
 
         %% ===== Additional simulation support
-        function [value, state_n, t] = step(obj, delta_t)
+        function [value, t] = step(obj, delta_t)
         %STEP simulate forward or backward
         %
         % by default steps forward by delta_t = 1
@@ -580,9 +616,8 @@ classdef rpLattice < RandProcess
             new_t = obj.t + delta_t;
 
             %check if it is valid
-            if new_t < 0
+            if new_t < 1
                 value = [];
-                state_n = [];
                 t = obj.t;
                 return
             else
@@ -590,67 +625,82 @@ classdef rpLattice < RandProcess
                 if floor(obj.t) == floor(new_t)
                     %No need to actually change, b/c we have discrete steps
                     %that round
-                    state_n = obj.cur_state;
-                    value = obj.dnum2val(state_n);
+                    value = obj.cur_state;
                 else
                     if new_t > obj.t
                         %Step forward
-                        trans_prob = cumsum(obj.Prob);
-                        for t = floor(obj.t):(floor(new_t)-1)
+                        for t = floor(obj.t):(floor(new_t))
                             if t >= obj.Tmax
-                                state_list = obj.ValueMap(obj.cur_state);
+                                state_list = obj.cur_state;
                                 new_idx = 1;
                             else
+                                trans_prob = cumsum(obj.LatticeUncondProb{t});
                                 %Extract possible next states (discrete)
-                                state_list = RoundTo(obj.ValueMap(obj.cur_state) .* obj.Coef, obj.Tol);
+                                state_list = RoundTo(obj.cur_state .* obj.Coef, obj.Tol);
 
                                 % Randomly select the new state based on the cdf
                                 % described by the prob vector (computed using cumsum)
                                 new_idx = find(rand<=trans_prob, 1, 'first');
-                                obj.cur_state = obj.dval2num(state_list(new_idx));
+                                obj.cur_state = state_list(new_idx);
                             end
                         end
                     else
                         %Step backward
-                        for t = floor(obj.t):-1:(floor(new_t)+1)
+                        for t = floor(obj.t):-1:(floor(new_t))
                             %Extract possible previous states (discrete)
-                            [state_list, REMOVE_state_n_list, prob] = obj.dlistprev(obj.cur_state, t );
+                            [state_list, prob] = obj.dlistprev(obj.cur_state, t );
 
                             % Randomly select the new state based on the cdf
                             % described by the prob vector (computed using cumsum)
                             new_idx = find(rand <= cumsum(prob), 1, 'first');
-                            obj.cur_state = REMOVE_state_n_list(new_idx);
+                            obj.cur_state = state_list(new_idx);
                         end
                     end
                     value = state_list(new_idx);
-                    state_n = obj.cur_state;
                 end
 
             end
             % Ensure that we will always leave the object's time in a valid
             % state by truncating excessively high or small stepsizes
-            obj.t = max(0, new_t);
+            obj.t = max(1, new_t);
             t = obj.t;
 
             % Setting t changes to the default state for the current time
             % so make sure we leave ourselves in the actual simulated
             % state.
-            obj.cur_state = state_n;
+            obj.cur_state = value;
         end
 
-        function [value, state_n, t] = curState(obj)
+        function [value, t] = cur_state(obj)
         %CURSTATE Return the current state of the simulation
-            value = obj.ValueMap(obj.cur_state);
-            state_n = obj.cur_state;
+            value = obj.cur_state;
             t = obj.t;
         end
 
         function reset(obj, initial_value) %#ok<INUSD>
-        %RESET reset simulation to t=0
-            obj.cur_state = obj.LatticeSNum{1};
-            obj.t = 0;
-
+        %RESET reset simulation to t=1
+            if nargin > 1
+                warning('rpLattice:InvalidStateForTime', 'Cannot specify value for rpLattice reset (only one t=1 value possible)')
+            end
+            obj.cur_state = obj.LatticeValue{1};
+            obj.t = 1;
         end
+        
+        function state_ok = checkState(obj, t, state)
+            % CHECKSTATE Check that state is valid for a given time
+            %
+            % rand_proc_object.checkState(t, state)
+            %       Raise 'RandProc:InvalidState' error if t is not valid in time t
+            % state_ok = rand_proc_object.checkState(t, state)
+            %       No error, simply return true/false if state is
+            %       valid/not
+            state_ok = not(isempty(state)) && ismembertol(state, obj.LatticeUncondProb{t}, obj.tol);
+            
+            if nargout == 0 && not(state_ok)
+                error('RandProcess:InvalidState', 'State %g is not valid at time %d', state, t)
+            end
+        end
+
 
     end
 

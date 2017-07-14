@@ -12,6 +12,7 @@ classdef RandProcess < AbstractSet
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  14  2017-07-14 06:02  BryanP      Clarify condintional and unconditional use for sample() 
 %  13  2017-04-10 16:36  BryanP      Make sample depend on state 
 %  12  2017-04-05 23:52  BryanP      Added checkState, various bugfixes
 %  11  2017-04-05 22:52  BryanP      include reset() implementation
@@ -102,16 +103,21 @@ classdef RandProcess < AbstractSet
         % To get the possible range across all times use t='all'
         state_value_range = range(obj, t)
         
-        %SAMPLE draw state samples for the given time and state
+        %SAMPLE draw state samples for the given time and (current) state
         %
         % Usage:
         %   state_list = disc_samp_object.sample()
-        %       One sample state from current time
+        %       One sample state from current time, using conditional
+        %       probability for current_state
         %   state_list = sample(obj, N)
-        %       Return N samples from current time and state
-        %   state_list = sample(obj, N, t, state)
-        %       Specify time period
-        state_list = sample(obj, N, t, state)
+        %       Return N samples
+        %   state_list = sample(obj, N, t)
+        %       Specify time and sample based on unconditional probability
+        %       across all valid states for t
+        %   state_list = sample(obj, N, t, cur_state)
+        %       Sample specified time using conditional probability
+        %       starting from provided state
+        state_list = sample(obj, N, t, cur_state)
 
         %% ===== Additional simulation support
         %STEP simulate forward

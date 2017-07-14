@@ -186,7 +186,7 @@ classdef rpDiscreteSample < RandProcess
         end
         
         %% == Additional public methods
-        function state_list = sample(obj, N, t, varargin)
+        function state_list = sample(obj, N, t, ~)
             %SAMPLE draw state samples for the given time
             % 
             % Usage:
@@ -386,7 +386,7 @@ classdef rpDiscreteSample < RandProcess
                 %Handle any non-integer or large values
                 t = min(floor(t), obj.Tmax);
 
-                if t < 1;
+                if t < 1
                     error('RandProcess:InvalidTime', 'Only t>=1 valid for rpDiscreteSample')
                 else
                     state_list_to_range = obj.Vlist{t};
