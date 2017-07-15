@@ -147,11 +147,6 @@ classdef rpDiscreteSample < RandProcess
 %   1  2011-04-08 14:30  BryanP      Adapted from rpLattice v6
 
 
-    % Internal properties
-    properties (Access='protected')
-        Tol = 1e-6;     % Tolerance for checking probabilities sum to 1
-    end
-
     methods
         %% ===== Constructor & related
         function obj = rpDiscreteSample(v_list, p_list)

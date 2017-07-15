@@ -55,13 +55,13 @@ classdef rpLattice < RandProcess
 %  12  2017-07-13 21:17  BryanP      Initial Update for new RandProc format
 %  11  2012-04-17 08:55  BryanP      Reworked cdf for sim/sample
 %  10  2012-01-25 13:45  BryanP      Allow blank constructor input for loading from a file
-%   9  2012-01-11 17:00  BryanP      Added constant non-walk for t>Tmax
+%   9  2012-01-11 17:00  BryanP      Added constant non-walk for t>LatticeTmax
 %   8  2011-11-09 23:40  BryanP      Added tolerance to constructor
 %   7  2011-06-09 16:00  BryanP      match input shape for dnum2val and dval2num
 %   6  2011-03-12 12:45  BryanP      Reordered set.Coef & CondProb to work with save/load
 %   5  2011-01-04 22:00  BryanP      Complete, working version
 %   4  2010-12-23 15:45  BryanP      Implemented buildLattice & dlist*
-%   3  2010-12-21 21:20  BryanP      Made Tmax required in constructor, etc
+%   3  2010-12-21 21:20  BryanP      Made LatticeTmax required in constructor, etc
 %   2  2010-12-15 23:30  BryanP      Added t_max for dlist(... 'all')
 %   1  2010-12-16 14:30  BryanP      Adapted from rpList v6
 
@@ -69,12 +69,12 @@ classdef rpLattice < RandProcess
         Start = [];   % initial value
         Coef = [];    % vector of coefficients
         CondProb = [];    % vector of probabilities
-        Tol = 0.0001; % rounding tolerance for merging states
     end
 
     % Internal properties
     properties (Access='protected')
         ConditionalCdf = [];          %precomputed conditional probability (based on CondProb)
+        LatticeTmax = 1;
         
         %Flags
         SkipLatticeBuild = false    %Wait till all values set before building the lattice
@@ -104,7 +104,7 @@ classdef rpLattice < RandProcess
             obj.UncondProbs = {1};
             obj.UncondCdfs = {1};
             %Then cycling through future time scenarios
-            for idx=2:(obj.Tmax+1)
+            for idx=2:(obj.LatticeTmax+1)
                 % Compute next lattice state by
                 % 1) multiplying the previous set of states by the
                 % coefficient matrix to form an array & compute
@@ -176,7 +176,7 @@ classdef rpLattice < RandProcess
             obj.SuppressLengthError = true;
 
             if nargin > 4
-                obj.Tmax = t_max;
+                obj.LatticeTmax = t_max;
             end
             if nargin > 5
                 obj.Tol = tol;
@@ -310,8 +310,8 @@ classdef rpLattice < RandProcess
                 error('RandProcess:InvalidTime', 'Only t>1 valid for rpLattice')
             end
 
-            %find a valid time for state lookup, by limiting to Tmax
-            t_lookup = min(t, obj.Tmax);
+            %find a valid time for state lookup, by limiting to LatticeTmax
+            t_lookup = min(t, obj.LatticeTmax);
 
             if isempty(state_in) ...
                     || not(all(ismembertol(state_in,obj.Values{t_lookup+1}, obj.Tol)))
@@ -319,7 +319,7 @@ classdef rpLattice < RandProcess
             else
                 %if we get here, we know the state is valid for this time
 
-                if t > obj.Tmax
+                if t > obj.LatticeTmax
                     state_list = state_in;
                 else
 
@@ -335,7 +335,7 @@ classdef rpLattice < RandProcess
                 end
 
                 if nargout > 1
-                    if t > obj.Tmax
+                    if t > obj.LatticeTmax
                         prob = 1;
                     else
                         %Compute the probability using Bayes' Theorem:
@@ -368,8 +368,8 @@ classdef rpLattice < RandProcess
                 error('RandProcess:InvalidTime', 'Only t>=1 valid for rpLattice')
             end
 
-            %find a valid time for state lookup, by limiting to Tmax
-            t_lookup = min(t, obj.Tmax+1);
+            %find a valid time for state lookup, by limiting to LatticeTmax
+            t_lookup = min(t, obj.LatticeTmax+1);
 
             if isempty(state_in) ...
                     || not(all(ismembertol(state_in,obj.Values{t_lookup}, obj.Tol)))
@@ -377,7 +377,7 @@ classdef rpLattice < RandProcess
             else
                 %if we get here, we know the state is valid for this time
 
-                if t > obj.Tmax
+                if t > obj.LatticeTmax
                     state_list = state_in;
                 else
                     % Build next value list by multiplying
@@ -387,7 +387,7 @@ classdef rpLattice < RandProcess
 
                 if nargout > 1
                     %Here the probability is easy... it is either
-                    if t > obj.Tmax
+                    if t > obj.LatticeTmax
                         %one or
                         prob = 1;
                     else
@@ -400,71 +400,6 @@ classdef rpLattice < RandProcess
 
 
         %% ===== Additional simulation support
-        function [value, t] = step(obj, delta_t)
-        %STEP simulate forward or backward
-        %
-        % by default steps forward by delta_t = 1
-            if nargin < 2
-                delta_t = 1;
-            end
-            %compute the proposed new time
-            new_t = obj.t + delta_t;
-
-            %check if it is valid
-            if new_t < 1
-                value = [];
-                t = obj.t;
-                return
-            else
-                %if new time is valid simulate forward or back as needed
-                if floor(obj.t) == floor(new_t)
-                    %No need to actually change, b/c we have discrete steps
-                    %that round
-                    value = obj.cur_state;
-                else
-                    if new_t > obj.t
-                        %Step forward
-                        for t = floor(obj.t):(floor(new_t))
-                            if t >= obj.Tmax
-                                state_list = obj.cur_state;
-                                new_idx = 1;
-                            else
-                                trans_prob = cumsum(obj.UncondProbs{t});
-                                %Extract possible next states (discrete)
-                                state_list = RoundTo(obj.cur_state .* obj.Coef, obj.Tol);
-
-                                % Randomly select the new state based on the cdf
-                                % described by the prob vector (computed using cumsum)
-                                new_idx = find(rand<=trans_prob, 1, 'first');
-                                obj.cur_state = state_list(new_idx);
-                            end
-                        end
-                    else
-                        %Step backward
-                        for t = floor(obj.t):-1:(floor(new_t))
-                            %Extract possible previous states (discrete)
-                            [state_list, prob] = obj.dlistprev(obj.cur_state, t );
-
-                            % Randomly select the new state based on the cdf
-                            % described by the prob vector (computed using cumsum)
-                            new_idx = find(rand <= cumsum(prob), 1, 'first');
-                            obj.cur_state = state_list(new_idx);
-                        end
-                    end
-                    value = state_list(new_idx);
-                end
-
-            end
-            % Ensure that we will always leave the object's time in a valid
-            % state by truncating excessively high or small stepsizes
-            obj.t = max(1, new_t);
-            t = obj.t;
-
-            % Setting t changes to the default state for the current time
-            % so make sure we leave ourselves in the actual simulated
-            % state.
-            obj.cur_state = value;
-        end
 
         function reset(obj, initial_value) %#ok<INUSD>
         %RESET reset simulation to t=1
@@ -501,7 +436,13 @@ classdef rpLattice < RandProcess
             end
             
             %Check that t and state match and make sense
-            obj.checkState(t, cur_state)
+            obj.checkState(t, cur_state);
+            
+            %Implement zero order hold
+            if t >= obj.N_uniqueT
+                state_list = repmat(cur_state, N, 1);
+                return
+            end
                 
             %Extract possible next states (discrete)
             possible_states = RoundTo(cur_state .* obj.Coef, obj.Tol);

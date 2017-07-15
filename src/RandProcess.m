@@ -29,6 +29,11 @@ classdef RandProcess < AbstractSet
 %   2  2010-12-13 21:20  BryanP      distinguish dsim & sim add internal t
 %   1  2010-12-13 12:20  BryanP      Initial Version
 
+    % User modifiable tolerances
+    properties
+        Tol = 1e-6;     % Tolerance for checking probabilities and state membership
+    end
+    
     % Read only properties
     properties (GetAccess = 'public', SetAccess='protected')
         t = NaN           %current timestep
@@ -227,8 +232,14 @@ classdef RandProcess < AbstractSet
             else
                 %if new time is valid simulate forward as needed
                 state = obj.cur_state;
-                for t = obj.t+1:new_t
+                for t = obj.t:new_t-1
                     state = obj.sample(1, t, state);
+                end
+                % finish by moving forward the last time step if needed
+                if delta_t >= 1
+                    t = t+1;
+                else
+                    t = obj.t;
                 end
     
                 % Update our stored state
@@ -245,10 +256,29 @@ classdef RandProcess < AbstractSet
         % state_ok = rand_proc_object.checkState(t, state)
         %       No error, simply return true/false if state is
         %       valid/not
-            state_ok = not(isempty(state)) && ismember(state, obj.Values{t}, 'rows');
+
+            %First double check the time has a chance of being valid
+            if t < 1
+                state_ok = false;
+                if nargout == 0
+                    error('RandProcess:InvalidTime', 'Random Process times must be >=1 (not %d)', t)
+                end
+                return
+            elseif t > obj.Tmax
+                state_ok = false;
+                if nargout == 0
+                    error('RandProcess:InvalidTime', 'Random Process times must be <Tmax (not %d)', t)
+                end
+                return
+            end
+            
+            % Convert time into lookup value
+            t_lookup = min(floor(t), obj.N_uniqueT);
+                
+            state_ok = not(isempty(state)) && ismembertol(state, obj.Values{t_lookup}, obj.Tol, 'ByRows', true);
             
             if nargout == 0 && not(state_ok)
-                error('RandProcess:InvalidState', 'State %s is not valid at time %d', state, t)
+                error('RandProcess:InvalidState', 'State [ %s] is not valid at time %d', sprintf('%g ',state), t)
             end
         end
 

@@ -134,7 +134,6 @@ function testIndividualParams(testCase)
     s = testCase.TestData.start *3;
     c = (1:length(testCase.TestData.coef))';
     p = ones(size(testCase.TestData.prob))/length(testCase.TestData.prob);
-    t = 8;
     
     %Try these out
     testCase.TestData.lattice_object.Start = s;
@@ -374,64 +373,26 @@ function testStep(testCase)
 
     t_max = testCase.TestData.tmax + 10;
     % Find "right" random based answers, including t>Tmax
-    v_test = SimHelper(testCase, 1, t_max+1, testCase.TestData.start);  
+    v_test = SimHelper(testCase, 1, t_max, testCase.TestData.start);  
 
-    for t = 1:t_max
+    for t = 2:t_max %Start at 2 b/c comparing results after step()
         [v, t_out] = testCase.TestData.lattice_object.step();
-        verifyEqual(testCase, v, v_test(t+1));
+        verifyEqual(testCase, v, v_test(t));
         verifyEqual(testCase, testCase.TestData.lattice_object.t, t)
         verifyEqual(testCase, t, t_out)
-        verifyEqual(testCase, testCase.TestData.lattice_object.cur_state(), v_test(t+1))
-    end
-
-    
-    %-- Now go backwards
-    % Note: here we keep two parallel random streams, the default one is
-    % used by step and the second one we use when drawing random numbers
-    % Since they are both initialized to the same value, we should get
-    % identical results
-    
-    c = clock;          %array of time value
-    seed = c(end)*1000; %Use current seconds of time in ms
-    rs=RandStream('mt19937ar', 'Seed', seed);
-    RandStream.setGlobalStream(rs);
-    rs2=RandStream('mt19937ar', 'Seed', seed);
-
-    for t = (t_max):-1:1
-
-        % Do our own backward step using listprev and the second random
-        % number stream
-        [v_list, prob] = testCase.TestData.lattice_object.dlistprev();
-        trans = cumsum(prob);
-        idx = find(rand(rs2) <= trans, 1, 'first');
-        v_test = v_list(idx);
-
-        % And compare this to the backward step
-        [v, t_out] = testCase.TestData.lattice_object.step(-1);
-        
-        verifyEqual(testCase, v, v_test)
-        verifyEqual(testCase, testCase.TestData.lattice_object.t, t)
-        verifyEqual(testCase, t_out, t)
-    end
-    
-    
-    % Test backing into invalid values of t (<0)
-    testCase.TestData.lattice_object.t = 0;
-    for st  = [-1, -3]
-        v = testCase.TestData.lattice_object.step(st);
-        verifyEqual(testCase, v, []);
-        %t should stop at 0
-        verifyEqual(testCase, testCase.TestData.lattice_object.t, 0)
+        verifyEqual(testCase, testCase.TestData.lattice_object.cur_state(), v_test(t))
     end
 
     %-- Test bigger steps
     t = 1;
 
     for st = 1:3
-        % Find "right" random based answers
-        v_test = SimHelper(testCase, t, testCase.TestData.tmax, testCase.TestData.lattice{t+1}(t+1));  
+        % First reset since that may change random samples
+        testCase.TestData.lattice_object.reset();
 
-        testCase.TestData.lattice_object.t=t;
+        % Find "right" random based answers
+        v_test = SimHelper(testCase, t, testCase.TestData.tmax+1, testCase.TestData.lattice{t}(t));  
+
         idx = st+1;
         [v, t_out] = testCase.TestData.lattice_object.step(st);
         verifyEqual(testCase, v, v_test(idx));
@@ -450,15 +411,17 @@ function testStep(testCase)
     %test non-integer steps
     t = 0;
     for st = [1.2 4.1 2 pi-1]
-        % Find "right" random based answers
-        v_test = SimHelper(testCase, t, testCase.TestData.tmax, testCase.TestData.lattice{t+1}(t+1));  
+        % First reset since that may change random samples
+        testCase.TestData.lattice_object.reset();
 
-        testCase.TestData.lattice_object.t=t;
+        % Find "right" random based answers
+        v_test = SimHelper(testCase, t, testCase.TestData.tmax+1, testCase.TestData.lattice{t}(t));  
+
         idx = floor(st)+1;
         [v, t_out] = testCase.TestData.lattice_object.step(st);
         verifyEqual(testCase, v, v_test(idx));
         verifyEqual(testCase, testCase.TestData.lattice_object.t, t+st)
-        verifyEqual(testCase, t+st, t_out)
+        verifyEqual(testCase, t+st, t_out)    
     end
 
     % Test reduced number of outputs & starting with testCase.TestData.lattice_object non-zero start time
@@ -478,34 +441,30 @@ end
 
 %% Test CurState method
 function testCurState(testCase)
-    % Test proper handling of 0<t<Tmax
-    for t = 0:(length(testCase.TestData.lattice)-1)
-        testCase.TestData.lattice_object.t = t;
-        [v, n, t_out] = testCase.TestData.lattice_object.cur_state();
+    % Test proper handling of 1<t<Tmax
+    for t = 1:(length(testCase.TestData.lattice))
+        testCase.TestData.lattice_object.step();
+        
+        v = testCase.TestData.lattice_object.cur_state();
         idx = ceil(length(testCase.TestData.lattice{t+1})/2);
         verifyEqual(testCase, v, testCase.TestData.lattice{t+1}(idx));
-        verifyEqual(testCase, n, testCase.TestData.lattice{t+1}(idx));
-        verifyEqual(testCase, t, t_out);
     end
     
     % Test reduced number of outputs
     t = 2;
-    testCase.TestData.lattice_object.t = t;
+    testCase.TestData.lattice_object.reset();
+    testCase.TestData.lattice_object.step();
     % value only
     v = testCase.TestData.lattice_object.cur_state();
     idx = ceil(length(testCase.TestData.lattice{t+1})/2);
     verifyEqual(testCase, v, testCase.TestData.lattice{t+1}(idx));
-    % value & state only
-    [v, n] = testCase.TestData.lattice_object.cur_state();
-    verifyEqual(testCase, v, testCase.TestData.lattice{t+1}(idx));
-    verifyEqual(testCase, n, testCase.TestData.lattice{t+1}(idx));
 end
 
 %% Test Reset method
 function testReset(testCase)
     testCase.TestData.lattice_object.reset();
     
-    verifyEqual(testCase, testCase.TestData.lattice_object.t, 0);
+    verifyEqual(testCase, testCase.TestData.lattice_object.t, 1);
     verifyEqual(testCase, testCase.TestData.lattice_object.cur_state(), testCase.TestData.start);
 end
 
