@@ -30,7 +30,7 @@ function multi_inv_problem = MultiInvSetupProblem(multiinv_params, varargin)
 %                     params: [1×1 struct]
 %              discount_rate: 0.1000
 %                  n_periods: 3
-%                  state_set: {1×4 cell}
+%                  state_set: {[1×1 setCombinWithLimits] [1×1 setCombinWithLimits] [1×1 setCombinWithLimits] [1×1 setCombinWithLimits]}
 %             fTerminalValue: @MultiInvTerminalValue
 %               fDecisionSet: @MultiInvDecisionSet
 %              fDecisionCost: @MultiInvDecisionCost

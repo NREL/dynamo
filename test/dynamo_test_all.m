@@ -9,7 +9,41 @@ function dynamo_test_all
 %  Note: `example/multi_inventory` needs to be in the path
 
 %% === MATLAB Unit Tests ===
-test_results = runtests('testrpLattice.m');
+fprintf('\n------ UNIT TESTS -------\n')
+unittest_list = {    
+                    %Sets
+
+                    %Random Processes
+                    'testrpLattice.m'
+                    %Utilities
+
+                    %Examples
+
+                    };
+%initialize pass & test counts
+total_unittests = 0;
+total_unitpass = 0;
+
+unittest_time = tic;
+for u_idx = 1:length(unittest_list)
+    u_name = unittest_list{u_idx};
+    
+    test_results = table(runtests('testrpLattice.m'));
+    n_pass = sum(test_results.Passed);
+    n_tests = n_pass + sum(test_results.Incomplete) + sum(test_results.Failed);
+    
+    fprintf('%s: ', u_name)
+    if n_pass == n_tests
+        fprintf('PASS')
+    else
+        fprintf('FAIL')
+    end
+    fprintf(': %d/%d tests pass (%g%%)\n\n', n_pass, n_tests, round(n_pass/n_tests*100,1))
+    
+    total_unittests = total_unittests + n_tests;
+    total_unitpass = total_unitpass + n_pass;
+end
+unittest_time = toc(unittest_time);
 
 %% ====== DOCTESTS =======
 % Warn if using an older MATLAB than R2016b. Note version 9.1 = R2016b
@@ -18,8 +52,7 @@ if verLessThan('matlab','9.1')
         'MATLAB changed its output formatting in R2016b. Many of these doctests will break on older versions')
 end
 
-test_time = tic;
-
+fprintf('\n------ DOCTESTS -------\n')
 docs_to_test = {    
                     %Sets
                     'setSingleItem'
@@ -36,24 +69,38 @@ docs_to_test = {
                     'MultiInvSetupProblem'
                 };
 %initialize pass & test counts
-total_tests = 0;
-total_pass = 0;
+total_doctests = 0;
+total_docpass = 0;
 
+doctest_time = tic;
 for d_idx = 1:length(docs_to_test)
     d_name = docs_to_test{d_idx};
     
     fprintf('\nTesting %s\n', d_name)
     [~, n_pass, n_tests] = doctest(d_name);
-    total_tests = total_tests + n_tests;
-    total_pass = total_pass + n_pass;
+    total_doctests = total_doctests + n_tests;
+    total_docpass = total_docpass + n_pass;
 end
+doctest_time = toc(doctest_time);
 
-%Display summary
-fprintf('\n  DOCTEST Results (%d files): ', length(docs_to_test))
-if total_pass == total_tests
+%% Display summary
+fprintf('\n========= dynamo testing summary ========\n')
+%unit tests
+fprintf(' UNIT TEST (%d files): ', length(unittest_list))
+if total_unitpass == total_unittests
     fprintf('PASS')
 else
     fprintf('FAIL')
 end
-fprintf(', %d/%d tests pass (%d%%)\n  ', total_pass, total_tests, total_pass/total_tests*100)
-toc(test_time)
+fprintf(', %3d/%3d suites pass (%g%%) in %g sec\n', total_unitpass, total_unittests, round(total_unitpass/total_unittests*100, 1), unittest_time)
+
+
+%doctests
+fprintf(' DOCTEST   (%d files): ', length(docs_to_test))
+if total_docpass == total_doctests
+    fprintf('PASS')
+else
+    fprintf('FAIL')
+end
+fprintf(', %3d/%3d lines  pass (%g%%) in %g sec\n', total_docpass, total_doctests, round(total_docpass/total_doctests*100, 1), doctest_time)
+end

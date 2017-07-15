@@ -236,6 +236,6 @@ if n_pass == length(results)
 else
     fprintf(out, 'FAIL')
 end
-fprintf(out, ': %d/%d tests pass (%d%%)\n', n_pass, length(results), n_pass/length(results)*100)
+fprintf(out, ': %d/%d tests pass (%g%%)\n', n_pass, length(results), round(n_pass/length(results)*100,1))
 
 end
