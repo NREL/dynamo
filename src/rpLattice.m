@@ -325,7 +325,7 @@ classdef rpLattice < RandProcess
 
                     % Build previous value list by reversing the multiplication
                     % by coef required to get there
-                    state_list = RoundTo(obj.ValueMap(state_in) ./ obj.Coef, obj.Tol);
+                    state_list = RoundTo(state_in ./ obj.Coef, obj.Tol);
 
                     % For values near the "edge" not all of the possible priors
                     % from this division are actually valid states during the
@@ -365,27 +365,27 @@ classdef rpLattice < RandProcess
                 [state_list, prob] = obj.dlistnext(state_in, obj.t);
                 return
             elseif t < 1
-                error('RandProcess:InvalidTime', 'Only t>0 valid for rpLattice')
+                error('RandProcess:InvalidTime', 'Only t>=1 valid for rpLattice')
             end
 
             %find a valid time for state lookup, by limiting to Tmax
-            t_lookup = min(t, obj.Tmax);
+            t_lookup = min(t, obj.Tmax+1);
 
             if isempty(state_in) ...
-                    || not(all(ismembertol(state_in,obj.Values{t_lookup+1}, obj.Tol)))
+                    || not(all(ismembertol(state_in,obj.Values{t_lookup}, obj.Tol)))
                 error('RandProcess:InvalidState', 'State %g not valid at time=%d', state_in, t)
             else
                 %if we get here, we know the state is valid for this time
 
                 if t > obj.Tmax
-                    state_list = obj.ValueMap(state_in);
+                    state_list = state_in;
                 else
                     % Build next value list by multiplying
                     % by coef required to get there
                     state_list = RoundTo(state_in .* obj.Coef, obj.Tol);
                 end
 
-                if nargout > 2
+                if nargout > 1
                     %Here the probability is easy... it is either
                     if t > obj.Tmax
                         %one or

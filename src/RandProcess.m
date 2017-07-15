@@ -196,10 +196,10 @@ classdef RandProcess < AbstractSet
                 state_list_to_range = cell2mat(obj.Values');
             else
                 %Handle any non-integer or large values
-                t = min(floor(t), obj.Tmax);
+                t = min(floor(t), obj.N_uniqueT);
 
                 if t < 1
-                    error('RandProcess:InvalidTime', 'Only t>=1 valid for rpDiscreteSample')
+                    error('RandProcess:InvalidTime', 'Only t>=1 valid for Random Processes')
                 else
                     state_list_to_range = obj.Values{t};
                 end
