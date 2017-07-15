@@ -24,6 +24,26 @@ classdef rpLattice < RandProcess
 %  - For t>MaxT, the lattice is assumed to remain constant with no more
 %    transitions
 %
+% Examples: (Note: additional debugging in testrpLattice unit test)
+% >> lattice_object = rpLattice(5, [0.5  1.2 1.5 ]', [0.15 0.5 0.35]', 3)
+% 
+% lattice_object = 
+% 
+%   rpLattice with properties:
+% 
+%            Start: 5
+%             Coef: [3×1 double]
+%         CondProb: [3×1 double]
+%              Tol: 1.0000e-04
+%                t: 1
+%        cur_state: 5
+%             name: ''
+%     pt_dim_names: {}
+%       SampleType: 'rand'
+%            N_dim: 1
+%     DiscreteMask: []
+% 
+%
 % see also rpPathDepend, RandProc, rpDiscreteSample, rpMarkov, rpBasic
 %
 % originally by Bryan Palmintier 2010
@@ -50,9 +70,6 @@ classdef rpLattice < RandProcess
         Coef = [];    % vector of coefficients
         CondProb = [];    % vector of probabilities
         Tol = 0.0001; % rounding tolerance for merging states
-        Tmax = 0;     % maximum time for which to compute the lattice
-        t = 1;        %current timestep
-
     end
 
     % Internal properties
@@ -69,7 +86,7 @@ classdef rpLattice < RandProcess
         function clearStoredLattice(obj)
             obj.Values = {obj.Start};
             obj.UncondProbs = {1};
-            obj.UncondProbsCdfs = {1};
+            obj.UncondCdfs = {1};
         end
 
         %Build & cache the lattice
@@ -85,7 +102,7 @@ classdef rpLattice < RandProcess
             %Starting with the initial value
             obj.Values = {obj.Start};
             obj.UncondProbs = {1};
-            obj.UncondProbsCdfs = {1};
+            obj.UncondCdfs = {1};
             %Then cycling through future time scenarios
             for idx=2:(obj.Tmax+1)
                 % Compute next lattice state by
@@ -123,7 +140,7 @@ classdef rpLattice < RandProcess
                 obj.UncondProbs{idx} = obj.UncondProbs{idx}/sum(obj.UncondProbs{idx});
                 
                 % 7) Compute corresponding unconditional cdf
-                obj.UncondProbsCdfs{idx} = cumsum(obj.UncondProbs{idx});
+                obj.UncondCdfs{idx} = cumsum(obj.UncondProbs{idx});
             end
         end
     end
@@ -135,17 +152,20 @@ classdef rpLattice < RandProcess
             %
             % Support zero parameter calls to constructor for special
             % MATLAB situations (see help files)
-            if nargin > 0
-                switch nargin
-                    case 5
-                        obj.setparams(start, coef, prob, t_max, tol);
-                    case 4
-                        obj.setparams(start, coef, prob, t_max);
-                    otherwise
-                        obj.setparams(start, coef, prob);
-                end
-            obj.reset();
+            if nargin == 0
+                return
             end
+            
+            if nargin < 5 || isempty(tol)
+                tol = 0.0001;
+            end
+            
+            if nargin < 4 || isempty(t_max)
+                t_max = 1;
+            end
+            
+            obj.setparams(start, coef, prob, t_max, tol);
+            obj.reset();
         end
 
         function setparams(obj, start, coef, prob, t_max, tol)
@@ -265,29 +285,6 @@ classdef rpLattice < RandProcess
 
             %Rebuild lattice
             obj.buildLattice;
-        end
-
-        % If changing t_max, remove no longer needed stored Lattice data
-        function set.Tmax(obj, t_max)
-            obj.Tmax = t_max;
-            obj.buildLattice;
-        end
-
-        % Check that we set a valid t
-        function set.t(obj, t)
-            if t < 1
-                error('RandProcess:InvalidTime', 'time (t) must be strictly positive')
-            else
-                if obj.t ~= t
-                    obj.t = t;
-
-                    %Now set the current state to the middle state for this
-                    %time and limit the value to Tmax
-                    t = min(floor(t),obj.Tmax); %#ok<MCSUP>
-                    s_idx = ceil(length(obj.LatticeSNum{t+1})/2);
-                    obj.cur_state = obj.LatticeSNum{t+1}(s_idx);
-                end
-            end
         end
         
         %% ===== Support for discrete usage

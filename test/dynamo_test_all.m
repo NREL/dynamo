@@ -8,6 +8,7 @@ function dynamo_test_all
 % 
 %  Note: `example/multi_inventory` needs to be in the path
 
+%% ====== DOCTESTS =======
 % Warn if using an older MATLAB than R2016b. Note version 9.1 = R2016b
 if verLessThan('matlab','9.1')
     warning('dynamo_run_all_tests:matlab_version_too_old', ...
@@ -22,6 +23,7 @@ docs_to_test = {
                     'setCombinWithLimits'
                     %Random Processes
                     'rpDiscreteSample'
+                    'rpLattice'
                     %Utilities
                     'utilRandSetCurState'
                     'utilRandStatefromState'
@@ -44,7 +46,7 @@ for d_idx = 1:length(docs_to_test)
 end
 
 %Display summary
-fprintf('\n  OVERALL Results (%d files): ', length(docs_to_test))
+fprintf('\n  DOCTEST Results (%d files): ', length(docs_to_test))
 if total_pass == total_tests
     fprintf('PASS')
 else
@@ -52,3 +54,6 @@ else
 end
 fprintf(', %d/%d tests pass (%d%%)\n  ', total_pass, total_tests, total_pass/total_tests*100)
 toc(test_time)
+
+%% === MATLAB Unit Tests ===
+test_results = runtests('testrpLattice.m');

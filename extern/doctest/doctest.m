@@ -193,9 +193,11 @@ end
 %
 
 n_pass = test_anything(result, verbose, createLinks);
-n_tests = length(result);
-all_pass = ( n_pass == n_tests );
 
+if nargout > 0
+    n_tests = length(result);
+    all_pass = ( n_pass == n_tests );
+end
 end
 
 
