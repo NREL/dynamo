@@ -316,7 +316,7 @@ classdef rpLattice < RandProcess
             t_lookup = min(t, obj.LatticeTmax);
 
             if isempty(state_in) ...
-                    || not(all(ismembertol(state_in,obj.Values{t_lookup+1}, obj.Tol)))
+                    || not(all(ismembertol(state_in,obj.Values{t_lookup}, obj.Tol)))
                 error('RandProcess:InvalidState', 'State %g not valid at time=%d', state_in, t)
             else
                 %if we get here, we know the state is valid for this time
@@ -333,7 +333,7 @@ classdef rpLattice < RandProcess
                     % from this division are actually valid states during the
                     % previous period, so limit our seach to those that are.
                     % Note: that the index t, corresponds to t-1 b/c 1-indexed
-                    [state_list, coef_used, states] = intersect(state_list, obj.Values{t});
+                    [state_list, coef_used, states] = intersect(state_list, obj.Values{t-1});
                 end
 
                 if nargout > 1
@@ -371,7 +371,7 @@ classdef rpLattice < RandProcess
             end
 
             %find a valid time for state lookup, by limiting to LatticeTmax
-            t_lookup = min(t, obj.LatticeTmax+1);
+            t_lookup = min(t, obj.LatticeTmax);
 
             if isempty(state_in) ...
                     || not(all(ismembertol(state_in,obj.Values{t_lookup}, obj.Tol)))
@@ -441,7 +441,7 @@ classdef rpLattice < RandProcess
             obj.checkState(t, cur_state);
             
             %Implement zero order hold
-            if t >= obj.N_uniqueT
+            if t >= obj.LatticeTmax
                 state_list = repmat(cur_state, N, 1);
                 return
             end

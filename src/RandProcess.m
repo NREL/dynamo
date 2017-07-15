@@ -126,6 +126,9 @@ classdef RandProcess < AbstractSet
             
             %Handle any non integer or large values for time
             t = min(floor(t), obj.N_uniqueT);
+            if t < 1
+                error('RandProcess:InvalidTime', 'Random Process times must be >=1 (not %d)', t)
+            end
 
             idx_at_t = zeros(N,1);
             for samp_idx = 1:N

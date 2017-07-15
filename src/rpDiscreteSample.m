@@ -123,6 +123,7 @@ classdef rpDiscreteSample < RandProcess
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  16  2017-07-15 14:42  BryanP      BUGFIX: conditionalSample for next time period 
 %  15  2017-07-14 21:35  BryanP      Remove sim and dsim, distinquish N_uniqueT from Tmax 
 %  14  2017-07-14 11:10  BryanP      Refactor generally usable code to RandProc 
 %  13  2017-04-25 07:42  BryanP      Allow empty state since we are time independant
@@ -244,7 +245,7 @@ classdef rpDiscreteSample < RandProcess
         %
         % Since we don't have any time correlation, this is just a simple
         % wrapper
-            state_list = obj.sample(N, t);
+            state_list = obj.sample(N, t+1);
         end
     end
     
