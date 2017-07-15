@@ -158,7 +158,7 @@ classdef rpDiscreteSample < RandProcess
             % MATLAB situations (see help files)
             if nargin == 0
                 obj.Values = v_list;
-                obj.Prob = p_list;
+                obj.UncondProbs = p_list;
             end
             
             %-- Extract dimensional data
@@ -171,14 +171,14 @@ classdef rpDiscreteSample < RandProcess
             % If probabilites not provided, assume uniform across all
             % values
             if nargin < 2
-                obj.Prob = cell(size(v_list));
+                obj.UncondProbs = cell(size(v_list));
                 for t_idx = 1:obj.Tmax
                     num_states = size(v_list{t_idx},1);
-                    obj.Prob{t_idx} = ones(num_states,1) ./ num_states;
+                    obj.UncondProbs{t_idx} = ones(num_states,1) ./ num_states;
                 end
 
             else
-                obj.Prob = p_list;
+                obj.UncondProbs = p_list;
             end
             
             % Store state value list
@@ -189,16 +189,16 @@ classdef rpDiscreteSample < RandProcess
             for t_idx = 1:obj.Tmax
                 %Create Cumulative distribution function for easier
                 %mapping of random samples
-                obj.UncondCdf{t_idx} = cumsum(obj.Prob{t_idx});
+                obj.UncondCdfs{t_idx} = cumsum(obj.UncondProbs{t_idx});
 
                 %Check for valid probability vectors 
                 %  Probability must sum to 1
-                if abs(obj.UncondCdf{t_idx}(end) - 1) > obj.Tol
+                if abs(obj.UncondCdfs{t_idx}(end) - 1) > obj.Tol
                     error('RandProc:ProbSum1', 'Probabilities must sum to 1.0 for t=%d', t_idx)
                 end
 
                 %  Must be same size as value list
-                if size(obj.Prob{t_idx}) ~= size(obj.Values{t_idx})
+                if size(obj.UncondProbs{t_idx}) ~= size(obj.Values{t_idx})
                     error('rpDiscreteSample:ValProbMismatch', 'Value & Probability vectors must have equal size for time=%d', t_idx)
                 end
             end
@@ -241,6 +241,16 @@ classdef rpDiscreteSample < RandProcess
             [next_state_list, probability_list] = obj.state_info(t+1);
         end
 
+    end
+ 
+    methods (Access = protected)
+        function state_list = conditionalSample(obj, N, t, cur_state) %#ok<INUSD>
+        %CONDITIONALSAMPLE draw state samples for the specified state
+        %
+        % Since we don't have any time correlation, this is just a simple
+        % wrapper
+            state_list = obj.sample(N, t);
+        end
     end
     
 end

@@ -37,8 +37,8 @@ classdef RandProcess < AbstractSet
     % Internal properties
     properties (Access='protected')
         Values = {};    % cell row vector of values: 1 cell column per time, typically column vectors per time
-        Prob = {};      % cell row vector of (unconditional) probabilities for each time period
-        UncondCdf = {}; % cell row vector of (unconditional) cumulative distribution for each time period
+        UncondProbs = {};      % cell row vector of (unconditional) probabilities for each time period
+        UncondCdfs = {}; % cell row vector of (unconditional) cumulative distribution for each time period
         
         Tmax = Inf;       % Largest time with specified distribution
     end
@@ -65,10 +65,27 @@ classdef RandProcess < AbstractSet
         % If t is out of the valid range, an error with ID
         % 'RandProcess:InvalidTime'
         [next_state_list, prob] = dlistnext (obj, t, state )
+        
+    end
+    
+    methods (Abstract, Access = protected)
+        %% ===== Process specific sub-functions
+        %CONDITIONALSAMPLE draw state samples for the specified state
+        %
+        % This helper function implements the conditional probability
+        % support specific to the subclass
+        %
+        % CONDITIONAL PROBABLITITY SUPPORT (Implemented in subclass via conditionalSample method)
+        %   state_list = sample(obj, N, t, cur_state)
+        %       Sample specified time using conditional probability
+        %       starting from provided state
+        %
+        %   Set cur_state to empty to use the object's current state
+        state_list = conditionalSample(obj, N, t, cur_state)
     end
 
     methods
-        function state_list = sample(obj, N, t, ~)
+        function state_list = sample(obj, N, t, cur_state)
         %SAMPLE draw state samples for the given time and (current) state
         %
         % Usage:
@@ -80,6 +97,8 @@ classdef RandProcess < AbstractSet
         %   state_list = sample(obj, N, t)
         %       Specify time and sample based on unconditional probability
         %       across all valid states for t
+        %
+        % CONDITIONAL PROBABLITITY SUPPORT (Implemented in subclass via conditionalSample method)
         %   state_list = sample(obj, N, t, cur_state)
         %       Sample specified time using conditional probability
         %       starting from provided state
@@ -91,22 +110,52 @@ classdef RandProcess < AbstractSet
                 t=obj.t;
             end
             
+            if nargin >= 4 && not(isempty(cur_state))
+                state_list = obj.conditionalSample(N, t, cur_state);
+                return
+            end
+            
             %Handle any non integer or large values for time
             t = min(floor(t), obj.Tmax);
 
             idx_at_t = zeros(N,1);
             for samp_idx = 1:N
-                idx_at_t(samp_idx) = find(rand(1) <= obj.UncondCdf{t}, 1, 'first');
+                idx_at_t(samp_idx) = find(rand(1) <= obj.UncondCdfs{t}, 1, 'first');
             end
             state_list = obj.Values{t}(idx_at_t,:);
         end
 
 
-        function [val, prob] = as_array(obj, varargin)
-            %For a RandProcess, as_array is a simple wrapper around
-            %dlistnext for the current state and time.c
+        function [val, prob] = as_array(obj, t, varargin)
+        %AS_ARRAY return possible values and (unconditional) probabilities
+        % val = rand_proc_object.as_array()
+        %   Return list of values for the current time
+        %
+        % [val, prob] = rand_proc_object.as_array()
+        %   Also return the corresponding (unconditional) probability
+        %
+        % __ = rand_proc_object.as_array(t)
+        %   Specify the time to use for the list. (Does not update the
+        %   object's current time)
+        %
+        % val = rand_proc_object.as_array('all')
+        %   List all possible states for all times (probability undefined
 
-            [val, prob] = obj.dlistnext(obj.cur_state, obj.t, varargin);
+            
+            if nargin < 2 || isempty (t)
+                t = obj.t;
+            end
+
+            if (ischar(t) && strcmp(t, 'all'))
+                val = unique(cell2mat(obj.Values'),'rows');
+                prob = NaN;
+                return
+            elseif t > obj.Tmax
+                t = obj.Tmax;
+            end
+
+            val = obj.Values{t};
+            prob = obj.UncondProbs{t};
         end
 
         function reset(obj, initial_state)
@@ -131,27 +180,9 @@ classdef RandProcess < AbstractSet
         % These need to be defined even for continuous processes, for
         % compatability with DP.
 
-        function state_list = dlist (obj, t)
-        % DLIST List possible discrete states
-        %
-        % List possible discrete states by number for given time
-        % if t is not listed, the states for the current simulation time
-        % are returned.
-        %
-        % To get a list of all possible states pass with t='all'
-        %
-        % Note: probabilities can't be returned, since transition probabilities
-        % are in general a function of the current state.
-            if nargin < 2 || isempty(t)
-                state_list = obj.dlist(obj.t);
-            elseif (ischar(t) && strcmp(t, 'all'))
-                state_list = unique(cell2mat(obj.Values'),'rows');
-            else
-                state_list = obj.state_info(t);
-            end
-        end
-
         function state_series = dsim(obj, t_list, initial_value) %#ok<INUSD>
+        % WARNING: DEPRECIATED
+        %
         % DSIM Simulate discrete process.
         %
         % A column vector for t is assumed to be a series of times for
@@ -188,7 +219,7 @@ classdef RandProcess < AbstractSet
 
                 %Sample all required times
                 for t_idx = 1:length(t_list)
-                    v_list = obj.sample(t_list(t_idx));
+                    v_list = obj.step();
                 end
 
                 %Set the current state
@@ -278,7 +309,7 @@ classdef RandProcess < AbstractSet
                     state = obj.cur_state;
                 else
                     t = new_t;
-                    state = obj.sample(1, t);
+                    state = obj.sample(1, t, obj.cur_state);
 
                     % Update our stored state
                     obj.t = t;
@@ -324,7 +355,7 @@ classdef RandProcess < AbstractSet
                 
                 %if we get here, we know the time is valid
                 state_list = obj.Values{t};
-                prob = obj.Prob{t};
+                prob = obj.UncondProbs{t};
             end
         end
         
