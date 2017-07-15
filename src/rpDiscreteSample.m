@@ -123,6 +123,7 @@ classdef rpDiscreteSample < RandProcess
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  15  2017-07-14 21:35  BryanP      Remove sim and dsim, distinquish N_uniqueT from Tmax 
 %  14  2017-07-14 11:10  BryanP      Refactor generally usable code to RandProc 
 %  13  2017-04-25 07:42  BryanP      Allow empty state since we are time independant
 %  12  2017-04-05 23:42  BryanP      Bugfixes & add checkState()
@@ -157,22 +158,21 @@ classdef rpDiscreteSample < RandProcess
             % Support zero parameter calls to constructor for special
             % MATLAB situations (see help files)
             if nargin == 0
-                obj.Values = v_list;
-                obj.UncondProbs = p_list;
+                v_list = obj.Values;
+                p_list = obj.UncondProbs;
             end
             
             %-- Extract dimensional data
-            %Note: Tmax is the max t with a unique value list. passing
-            %a t>Tmax will simply return the Tmax values (zero order
+            %Note: N_uniqueT is the max t with a unique value list. passing
+            %a t>N_uniqueT will simply return the N_uniqueT values (zero order
             %hold)
-            obj.Tmax = length(v_list);
             obj.N_dim = size(v_list{1},2);
 
             % If probabilites not provided, assume uniform across all
             % values
             if nargin < 2
                 obj.UncondProbs = cell(size(v_list));
-                for t_idx = 1:obj.Tmax
+                for t_idx = 1:length(v_list)
                     num_states = size(v_list{t_idx},1);
                     obj.UncondProbs{t_idx} = ones(num_states,1) ./ num_states;
                 end
@@ -186,7 +186,7 @@ classdef rpDiscreteSample < RandProcess
 
 
             % Loop through time for setting up additional parameters
-            for t_idx = 1:obj.Tmax
+            for t_idx = 1:obj.N_uniqueT
                 %Create Cumulative distribution function for easier
                 %mapping of random samples
                 obj.UncondCdfs{t_idx} = cumsum(obj.UncondProbs{t_idx});
@@ -225,7 +225,7 @@ classdef rpDiscreteSample < RandProcess
             end
             
             % adapt time to give valid index
-            t = min(floor(t), obj.Tmax);
+            t = min(floor(t), obj.N_uniqueT);
             
             % Allow empty state since we are time independant
             if not(isempty(cur_state))

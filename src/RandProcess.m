@@ -12,6 +12,7 @@ classdef RandProcess < AbstractSet
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  16  2017-07-14 21:35  BryanP      Remove sim and dsim, distinquish N_uniqueT from Tmax 
 %  15  2017-07-14 11:10  BryanP      Refactor generally usable code from rpDiscreteSample to here 
 %  14  2017-07-14 06:02  BryanP      Clarify condintional and unconditional use for sample() 
 %  13  2017-04-10 16:36  BryanP      Make sample depend on state 
@@ -43,6 +44,9 @@ classdef RandProcess < AbstractSet
         Tmax = Inf;       % Largest time with specified distribution
     end
 
+    properties (Dependent, Access = protected)
+        N_uniqueT;   % Number of unique time periods of values defined
+    end
 
     methods (Abstract)
         %% ===== Support for discrete usage
@@ -65,7 +69,6 @@ classdef RandProcess < AbstractSet
         % If t is out of the valid range, an error with ID
         % 'RandProcess:InvalidTime'
         [next_state_list, prob] = dlistnext (obj, t, state )
-        
     end
     
     methods (Abstract, Access = protected)
@@ -84,6 +87,7 @@ classdef RandProcess < AbstractSet
         state_list = conditionalSample(obj, N, t, cur_state)
     end
 
+    %% =========== General Public methods
     methods
         function state_list = sample(obj, N, t, cur_state)
         %SAMPLE draw state samples for the given time and (current) state
@@ -116,7 +120,7 @@ classdef RandProcess < AbstractSet
             end
             
             %Handle any non integer or large values for time
-            t = min(floor(t), obj.Tmax);
+            t = min(floor(t), obj.N_uniqueT);
 
             idx_at_t = zeros(N,1);
             for samp_idx = 1:N
@@ -176,87 +180,6 @@ classdef RandProcess < AbstractSet
             end
         end
 
-        %% ===== Support for discrete usage
-        % These need to be defined even for continuous processes, for
-        % compatability with DP.
-
-        function state_series = dsim(obj, t_list, initial_value) %#ok<INUSD>
-        % WARNING: DEPRECIATED
-        %
-        % DSIM Simulate discrete process.
-        %
-        % A column vector for t is assumed to be a series of times for
-        % which to return results. Intermediate times are also computed, if
-        % needed, but not returned. The initial value is not returned in
-        % the value series. Only one simulation is run, such that out of
-        % order times will be sorted before simulation and duplicate times
-        % will return the same result
-        %
-        % Invalid times (t<1) return NaN
-        %
-        % Note: after calling dsim, the process internal time will be set to
-        % the final value of t_list
-
-            %identify valid simulation times
-            ok = (t_list >= 1);
-
-            %initialize outputs
-            state_series = zeros(size(t_list),obj.N_dim);
-            state_series(not(ok),:) = NaN;
-
-            %only simulate valid values of t_list
-            t_list = t_list(ok);
-
-            %only run the simulation if there are valid times to simulate.
-            %If not, we have already filled the value list with NaNs and
-            %can skip ahead to the state list if requested.
-            if not(isempty(t_list))
-                %Find times we need to sample
-                [t_list, ~, sample_map] = unique(t_list);
-
-                %initalize sample results vectors
-                v_list = zeros(size(t_list, obj.N_dim));
-
-                %Sample all required times
-                for t_idx = 1:length(t_list)
-                    v_list = obj.step();
-                end
-
-                %Set the current state
-                obj.t = t_list(end);
-                obj.cur_state = v_list(end, :);
-
-                %Reorder samples to match the valid input times
-                v_list = v_list(sample_map,:);
-
-                %Now Stuff the correct values into the full output list
-                state_series(ok,:) = v_list;
-            end
-        end
-
-        %% ===== General (discrete or continuous) Methods
-        function state_series = sim(obj, t_list, initial_state)
-        % SIM Simulate process for desired (continuous) times
-        %
-        % A column vector for t is assumed to be a series of times for
-        % which to return results. Intermediate times are also computed, if
-        % needed. The initial value is not returned in the value series.
-        %
-        % Function must handle arbitrary positive values for t_list
-        % Invalid times (t<=1) return NaN
-        %
-        % Note: after calling sim, the process internal time will be set to
-        % the final value of t_list
-        %
-        % Note: This baseline implementation assumes a discrete process and
-        % treats accordingly by rounds down to the nearest integer time
-        % (zero order hold)
-            if nargin < 3
-                initial_state = [];
-            end
-            state_series = obj.dsim(floor(t_list), initial_state);
-        end
-
         function value_range = range(obj, t)
         % RANGE Find value range for given time
         %
@@ -287,48 +210,41 @@ classdef RandProcess < AbstractSet
 
         %% ===== Additional simulation support
         function [state, t] = step(obj, delta_t)
-        %STEP simulate forward or backward
+        %STEP simulate forward from current (internal) state
         %
         % by default steps forward by delta_t = 1
-            if nargin < 2
+            if nargin < 2 || isempty(delta_t)
                 delta_t = 1;
             end
             %compute the proposed new time
             new_t = obj.t + delta_t;
 
             %check if it is valid, if not return empty results
-            if new_t < 1
-                state = [];
+            if new_t < 1 || new_t > obj.Tmax
+                state = NaN;
                 t = obj.t;
                 return
             else
                 %if new time is valid simulate forward as needed
-                if floor(obj.t) == floor(new_t)
-                    %No need to actually change, b/c we have discrete steps
-                    %that round
-                    state = obj.cur_state;
-                else
-                    t = new_t;
-                    state = obj.sample(1, t, obj.cur_state);
-
-                    % Update our stored state
-                    obj.t = t;
-                    obj.cur_state = state;
-
+                state = obj.cur_state;
+                for t = obj.t+1:new_t
+                    state = obj.sample(1, t, state);
                 end
-
+    
+                % Update our stored state
+                obj.t = t;
+                obj.cur_state = state;
             end
-
         end
         
         function state_ok = checkState(obj, t, state)
-            % CHECKSTATE Check that state is valid for a given time
-            %
-            % rand_proc_object.checkState(t, state)
-            %       Raise 'RandProc:InvalidState' error if t is not valid in time t
-            % state_ok = rand_proc_object.checkState(t, state)
-            %       No error, simply return true/false if state is
-            %       valid/not
+        % CHECKSTATE Check that state is valid for a given time
+        %
+        % rand_proc_object.checkState(t, state)
+        %       Raise 'RandProc:InvalidState' error if t is not valid in time t
+        % state_ok = rand_proc_object.checkState(t, state)
+        %       No error, simply return true/false if state is
+        %       valid/not
             state_ok = not(isempty(state)) && ismember(state, obj.Values{t}, 'rows');
             
             if nargout == 0 && not(state_ok)
@@ -336,10 +252,15 @@ classdef RandProcess < AbstractSet
             end
         end
 
-        
+        % === Reference value functions
+        function n = get.N_uniqueT(obj)
+            n = length(obj.Values);
+        end
+
     end
     
     methods (Access = protected)
+        
         %% ===== Helper Functions
         function [state_list, prob] = state_info (obj, t )
             % STATE_INFO Helper function to return full set of state
