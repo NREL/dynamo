@@ -17,6 +17,7 @@ function results = adpSBI(problem, adp_opt, old_results)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  34  2017-07-14 22:00  BryanP      Adapt for RandProc streamlining (remove options for rp* samples) 
 %  33  2017-07-14 06:13  BryanP      BUGFIX: randomly select current state when sampling random processes (and properly locate random process sample options) 
 %  32  2017-06-15 06:04  BryanP      Reworked to use old_results rather than just post_vfun 
 %  31  2017-06-14 07:13  BryanP      Extract utilSetupVfun 
@@ -115,7 +116,7 @@ adp_opt = utilRandSetup(adp_opt);
 % Add additional required functions as needed
 problem.fOptimalDecision = utilFunctForProblem(problem, 'fOptimalDecision', @FindOptDecFromVfun);
 problem.fRandomSample = utilFunctForProblem(problem, 'fRandomSample', ...
-    @(t, n_sample) RandSetSample(problem.random_items, n_sample, t, [], adp_opt.sample_opt{:}));
+    @(t, n_sample) RandSetSample(problem.random_items, n_sample, t));
 
 %% ====== Additional Setup =====
 %Pad samples per period if shorter than number of periods

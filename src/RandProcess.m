@@ -272,7 +272,7 @@ classdef RandProcess < AbstractSet
                 t = floor(t);
                 
                 % and use t=Tmax for any t>Tmax
-                t = min(t, obj.Tmax);
+                t = min(t, obj.N_uniqueT);
                 
                 %if we get here, we know the time is valid
                 state_list = obj.Values{t};
