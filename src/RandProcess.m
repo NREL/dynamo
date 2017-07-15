@@ -159,8 +159,10 @@ classdef RandProcess < AbstractSet
                 val = unique(cell2mat(obj.Values'),'rows');
                 prob = NaN;
                 return
-            elseif t > obj.Tmax
-                t = obj.Tmax;
+            elseif t < 1
+                error('RandProcess:InvalidTime', 'Random Process times must be >=1 (not %d)', t)
+            elseif t > obj.N_uniqueT
+                t = obj.N_uniqueT;
             end
 
             val = obj.Values{t};

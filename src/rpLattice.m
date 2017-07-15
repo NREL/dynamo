@@ -51,6 +51,8 @@ classdef rpLattice < RandProcess
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  15  2017-07-15 11:27  BryanP      BUGFIX: only build lattice to Tmax (artifact of t_start = 1) 
+%  14  2017-07-15 weehr  BryanP      Overhaul: t_start = 1, RandProcess streamlining, debugging with testrpLattice 
 %  13  2017-07-14 05:48  BryanP      Only support value states 
 %  12  2017-07-13 21:17  BryanP      Initial Update for new RandProc format
 %  11  2012-04-17 08:55  BryanP      Reworked cdf for sim/sample
@@ -104,7 +106,7 @@ classdef rpLattice < RandProcess
             obj.UncondProbs = {1};
             obj.UncondCdfs = {1};
             %Then cycling through future time scenarios
-            for idx=2:(obj.LatticeTmax+1)
+            for idx=2:(obj.LatticeTmax)
                 % Compute next lattice state by
                 % 1) multiplying the previous set of states by the
                 % coefficient matrix to form an array & compute
@@ -161,7 +163,7 @@ classdef rpLattice < RandProcess
             end
             
             if nargin < 4 || isempty(t_max)
-                t_max = 1;
+                t_max = 2;
             end
             
             obj.setparams(start, coef, prob, t_max, tol);
