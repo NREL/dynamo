@@ -49,13 +49,14 @@
 %   setCombinWithLimits with properties:
 % 
 %     UseValueSpace: 0
-%               Opt: [1x1 struct]
+%               Opt: [1×1 struct]
 %          N_Combin: 41
 %              name: ''
 %      pt_dim_names: {}
 %        SampleType: 'from_list'
 %             N_dim: 3
 %      DiscreteMask: []
+% 
 % 
 % >> dec_list = dec_set_test.as_array;
 % >> size(dec_list)
@@ -165,19 +166,23 @@
 % 
 % ans =
 % 
-%      1
+%   logical
+% 
+%    1
 % 
 % >> func2str(multi_inv_problem.fOpsAfterDecision)
 % 
 % ans =
 % 
-% MultiInvOps
+% 'MultiInvOps'
 % 
 % >> isempty(multi_inv_problem.fOpsAfterRandom)
 % 
 % ans =
 % 
-%      1
+%   logical
+% 
+%    1
 % 
 % 
 % 

@@ -19,7 +19,7 @@ classdef setCombinWithLimits < AbstractSet
 %   setCombinWithLimits with properties:
 % 
 %     UseValueSpace: 0
-%               Opt: [1x1 struct]
+%               Opt: [1×1 struct]
 %          N_Combin: 7
 %              name: ''
 %      pt_dim_names: {}
@@ -64,7 +64,7 @@ classdef setCombinWithLimits < AbstractSet
 %   setCombinWithLimits with properties:
 % 
 %     UseValueSpace: 1
-%               Opt: [1x1 struct]
+%               Opt: [1×1 struct]
 %          N_Combin: 7
 %              name: ''
 %      pt_dim_names: {}
@@ -93,6 +93,7 @@ classdef setCombinWithLimits < AbstractSet
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   3  2017-07-14 20:02  BryanP      Update doctests for new output style 
 %   2  2017-04-26 04:46  BryanP      Overhauled for revised AbstractSet (v4) 
 %   1  2016-07-08 07:00  BryanP      Initial version adapted from setNdRange v2 
 

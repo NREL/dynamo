@@ -9,7 +9,9 @@ function cur_rand_state_cell = utilRandStatefromState(full_state, random_state_m
 % 
 % ans = 
 % 
-%     [44]    [1x2 double]    [1x0 double]
+%   1×3 cell array
+% 
+%     [44]    [1×2 double]    [1×0 double]
 % 
 % >> ans{2}
 % 
@@ -21,7 +23,9 @@ function cur_rand_state_cell = utilRandStatefromState(full_state, random_state_m
 % 
 % ans = 
 % 
-%     [1x0 double]    [1x0 double]    [1x0 double]
+%   1×3 cell array
+% 
+%     [1×0 double]    [1×0 double]    [1×0 double]
 %
 %
 % See also: RandSetSample, RandSetNextJoint, RandProcess
@@ -29,6 +33,7 @@ function cur_rand_state_cell = utilRandStatefromState(full_state, random_state_m
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   2  2017-07-14 22:12  BryanP      Update doctests for latest matlab output format 
 %   1  2017-04-25 17:05  BryanP      Initial Code
 
 n_rp = length(random_state_map_cell);
