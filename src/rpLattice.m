@@ -24,7 +24,7 @@ classdef rpLattice < RandProcess
 %  - For t>MaxT, the lattice is assumed to remain constant with no more
 %    transitions
 %
-% Examples: (Note: additional debugging in testrpLattice unit test)
+% Examples: (Note: extensive, comprehensive debugging in testrpLattice unit test)
 % >> lattice_object = rpLattice(5, [0.5  1.2 1.5 ]', [0.15 0.5 0.35]', 3)
 % 
 % lattice_object = 
@@ -44,13 +44,14 @@ classdef rpLattice < RandProcess
 %     DiscreteMask: []
 % 
 %
-% see also rpPathDepend, RandProc, rpDiscreteSample, rpMarkov, rpBasic
+% see also rpTransMatrix, RandProc, rpDiscreteSample, rpMarkov, rpBasic
 %
 % originally by Bryan Palmintier 2010
 
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  16  2017-07-15 22:13  BryanP      Use RandProcess reset() b/c no longer supports multiple initial states  
 %  15  2017-07-15 11:27  BryanP      BUGFIX: only build lattice to Tmax (artifact of t_start = 1) 
 %  14  2017-07-15 weehr  BryanP      Overhaul: t_start = 1, RandProcess streamlining, debugging with testrpLattice 
 %  13  2017-07-14 05:48  BryanP      Only support value states 
@@ -400,17 +401,6 @@ classdef rpLattice < RandProcess
             end
         end
 
-
-        %% ===== Additional simulation support
-
-        function reset(obj, initial_value) %#ok<INUSD>
-        %RESET reset simulation to t=1
-            if nargin > 1
-                warning('rpLattice:InvalidStateForTime', 'Cannot specify value for rpLattice reset (only one t=1 value possible)')
-            end
-            obj.cur_state = obj.Values{1};
-            obj.t = 1;
-        end       
     end
     
     methods (Access = protected)

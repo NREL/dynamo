@@ -77,13 +77,13 @@ classdef rpDiscreteSample < RandProcess
 % 
 % ans =
 % 
-%     20    21
+%     10    11
 % 
 % >> s.step()
 % 
 % ans =
 % 
-%     10    11
+%     30    31
 % 
 % >> s.t
 % 

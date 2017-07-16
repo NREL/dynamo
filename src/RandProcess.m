@@ -12,6 +12,7 @@ classdef RandProcess < AbstractSet
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  17  2017-07-15 22:13  BryanP      Streamline reset() t no longer supports multiple initial states  
 %  16  2017-07-14 21:35  BryanP      Remove sim and dsim, distinquish N_uniqueT from Tmax 
 %  15  2017-07-14 11:10  BryanP      Refactor generally usable code from rpDiscreteSample to here 
 %  14  2017-07-14 06:02  BryanP      Clarify condintional and unconditional use for sample() 
@@ -125,9 +126,12 @@ classdef RandProcess < AbstractSet
             end
             
             %Handle any non integer or large values for time
-            t = min(floor(t), obj.N_uniqueT);
             if t < 1
                 error('RandProcess:InvalidTime', 'Random Process times must be >=1 (not %d)', t)
+            elseif t > obj.Tmax
+                error('RandProcess:InvalidTime', 'Specified t (%d) exceeds max for object (%d)', t, obj.Tmax)
+            else
+                t = min(floor(t), obj.N_uniqueT);
             end
 
             idx_at_t = zeros(N,1);
@@ -164,6 +168,8 @@ classdef RandProcess < AbstractSet
                 return
             elseif t < 1
                 error('RandProcess:InvalidTime', 'Random Process times must be >=1 (not %d)', t)
+            elseif t > obj.Tmax
+                error('RandProcess:InvalidTime', 'Specified t (%d) exceeds max for object (%d)', t, obj.Tmax)
             elseif t > obj.N_uniqueT
                 t = obj.N_uniqueT;
             end
@@ -172,22 +178,14 @@ classdef RandProcess < AbstractSet
             prob = obj.UncondProbs{t};
         end
 
-        function reset(obj, initial_state)
+        function reset(obj)
             % RESET reset simulation
             %
             % rand_proc_obj.reset()
-            %       resets t=1 and a random initial state
-            % rand_proc_obj.reset(initial_state)
+            %       resets t=1 and initial state
         
             obj.t = 1;
-            if nargin > 1
-                %Check state will error out if state is invalid
-                obj.checkState(obj.t, initial_state);
-                
-                obj.cur_state = initial_state;
-            else
-                obj.cur_state = obj.sample();
-            end
+            obj.cur_state = obj.Values{1}(1,:);
         end
 
         function value_range = range(obj, t)
@@ -253,24 +251,26 @@ classdef RandProcess < AbstractSet
             end
         end
         
-        function state_ok = checkState(obj, t, state)
+        function [state_idx, t_lookup] = checkState(obj, t, state)
         % CHECKSTATE Check that state is valid for a given time
         %
         % rand_proc_object.checkState(t, state)
         %       Raise 'RandProc:InvalidState' error if t is not valid in time t
-        % state_ok = rand_proc_object.checkState(t, state)
-        %       No error, simply return true/false if state is
-        %       valid/not
+        % state_idx = rand_proc_object.checkState(t, state)
+        %       No error, simply return index of state location (or 0 if
+        %       not valid)
+        % [state_idx, t_lookup] = rand_proc_object.checkState(t, state)
+        %       Also return a truncated time lookup value, limited to obj.N_uniqueT
 
             %First double check the time has a chance of being valid
             if t < 1
-                state_ok = false;
+                state_idx = 0;
                 if nargout == 0
                     error('RandProcess:InvalidTime', 'Random Process times must be >=1 (not %d)', t)
                 end
                 return
             elseif t > obj.Tmax
-                state_ok = false;
+                state_idx = 0;
                 if nargout == 0
                     error('RandProcess:InvalidTime', 'Random Process times must be <Tmax (not %d)', t)
                 end
@@ -280,9 +280,9 @@ classdef RandProcess < AbstractSet
             % Convert time into lookup value
             t_lookup = min(floor(t), obj.N_uniqueT);
                 
-            state_ok = not(isempty(state)) && ismembertol(state, obj.Values{t_lookup}, obj.Tol, 'ByRows', true);
+            state_idx = find(ismembertol(state, obj.Values{t_lookup}, obj.Tol, 'ByRows', true), 1, 'first');
             
-            if nargout == 0 && not(state_ok)
+            if nargout == 0 && not(state_idx)
                 error('RandProcess:InvalidState', 'State [ %s] is not valid at time %d', sprintf('%g ',state), t)
             end
         end

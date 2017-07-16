@@ -60,6 +60,7 @@ docs_to_test = {
                     %Random Processes
                     'rpDiscreteSample'
                     'rpLattice'
+                    'rpTransMatrix'
                     %Utilities
                     'utilRandSetCurState'
                     'utilRandStatefromState'
@@ -86,7 +87,7 @@ doctest_time = toc(doctest_time);
 %% Display summary
 fprintf('\n========= dynamo testing summary ========\n')
 %unit tests
-fprintf(' UNIT TEST (%d files): ', length(unittest_list))
+fprintf(' UNIT TEST (%2d files): ', length(unittest_list))
 if total_unitpass == total_unittests
     fprintf('PASS')
 else
@@ -96,7 +97,7 @@ fprintf(', %3d/%3d suites pass (%g%%) in %g sec\n', total_unitpass, total_unitte
 
 
 %doctests
-fprintf(' DOCTEST   (%d files): ', length(docs_to_test))
+fprintf(' DOCTEST   (%2d files): ', length(docs_to_test))
 if total_docpass == total_doctests
     fprintf('PASS')
 else

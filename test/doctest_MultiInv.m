@@ -25,10 +25,13 @@
 % 
 % 
 % >> t = 1;
-% >> test_pre_state_list = multi_inv_problem.state_set{t}.sample(3)
+% >> test_pre_state_list = multi_inv_problem.state_set{t}.sample(6)
 % 
 % test_pre_state_list =
 % 
+%      0     0    10
+%      2     1    12
+%      0     1     1
 %      4     0    12
 %      3     1     6
 %      6     0     0
@@ -295,7 +298,7 @@ multi_inv_problem = MultiInv_demo('med');   %Runs MultiInvParamsSetup
 
 
 t = 1;
-test_pre_state_list = multi_inv_problem.state_set{t}.sample(3)
+test_pre_state_list = multi_inv_problem.state_set{t}.sample(6)
 test_pre_state = multi_inv_problem.state_set{t}.sample()
 
 
