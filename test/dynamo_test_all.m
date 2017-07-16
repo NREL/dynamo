@@ -65,6 +65,7 @@ docs_to_test = {
                     %Utilities
                     'utilRandSetCurState'
                     'utilRandStatefromState'
+                    'IntegerRangeFromReal'
                     %Examples
                     'doctest_MultiInv'
                     'MultiInv_demo'
