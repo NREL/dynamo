@@ -28,6 +28,7 @@ classdef rpTransMatrix < RandProcess
 %
 % Examples (using ISGT paper values)
 %
+% >> format shortG
 % >> rng(0);
 % >> states = {0.76, [0.76+0.33; 0.76+0.1], [0.76+0.33+0.42; .76+0.1+0.4; 0.76+0.1+0.25]};
 % >> prob = {[1 1]/2, [0.80 0.20  0   ; 0   0.2 0.8]};
@@ -37,44 +38,44 @@ classdef rpTransMatrix < RandProcess
 % 
 %   rpTransMatrix with properties:
 % 
-%              Tol: 1.0000e-06
+%              Tol: 1e-06
 %                t: 1
-%        cur_state: 0.7600
+%        cur_state: 0.76
 %             name: ''
 %     pt_dim_names: {}
 %       SampleType: 'rand'
 %            N_dim: 1
 %     DiscreteMask: []
 %
-% >>[s_list, p_list] = rtm_obj.as_array(1)
+% >> [s_list, p_list] = rtm_obj.as_array(1)
 % s_list =
-%     0.7600
+%     0.76
 % p_list =
 %      1
 %
 % >> [s_list, p_list] = rtm_obj.as_array(3)
 % s_list =
-%     1.5100
-%     1.2600
-%     1.1100
+%     1.51
+%     1.26
+%     1.11
 % p_list =
-%     0.4000
-%     0.2000
-%     0.4000
+%     0.4
+%     0.2
+%     0.4
 % 
 % >> rtm_obj.sample(3)
 % ans =
-%     0.7600
-%     0.7600
-%     0.7600
+%     0.76
+%     0.76
+%     0.76
 %
 % >> rtm_obj.sample(5, 3)
 % ans =
-%     1.1100
-%     1.1100
-%     1.5100
-%     1.5100
-%     1.2600
+%     1.11
+%     1.11
+%     1.51
+%     1.51
+%     1.26
 % 
 %
 % see also rpLattice, RandProc, rpDiscreteSample, rpMarkov, rpBasic
@@ -84,6 +85,7 @@ classdef rpTransMatrix < RandProcess
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   3  2017-07-16 17:27  BryanP      Specify format as shortG for consistant doctests 
 %   2  2017-07-16 00:13  BryanP      Use standardized conditionatlSample() in RandProcess 
 %   1  2017-07-15 20:02  BryanP      Original version adapted from rpLattice v15
 

@@ -23,6 +23,7 @@ function [multi_inv_problem, results] = MultiInv_demo(varargin)
 %
 %
 % %% Test DP algorithm using the small case and compare to pre-computed optimal policy:
+% >> format shortG
 % >> small_opt_policy_cell = {[0,0]		[2,4]	[2,4]	[1,2]; [0,1]		[2,3]	[2,3]	[0,0]; [0,2]		[2,2]	[2,2]	[0,0];  [0,3]		[2,1]	[0,0]	[0,0] ; [0,4]		[2,0]	[2,0]	[0,0] ; [0,5]		[2,0]	[2,0]	[0,0] ; [0,6]		[0,0]	[0,0]	[0,0];  [1,0]		[1,4]	[1,4]	[0,2] ; [1,1]		[1,3]	[1,3]	[0,0]; [1,2]		[0,0]	[0,0]	[0,0] }; 
 %
 % >> small_opt_value = 'TODO';
@@ -66,7 +67,7 @@ function [multi_inv_problem, results] = MultiInv_demo(varargin)
 %          post_vfun: [1×4 faLocalRegr]
 %            adp_opt: [1×1 struct]
 %     first_decision: [2 4]
-%          objective: 16.3219
+%          objective: 16.322
 % %
 % >> isequal(small_sbi_result.first_decision, small_opt_policy_cell{1,2})
 % 
@@ -78,6 +79,7 @@ function [multi_inv_problem, results] = MultiInv_demo(varargin)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  19  2017-07-16 17:27  BryanP      Specify format as shortG for consistant doctests 
 %  18  2017-04-26 17:32  BryanP      Added many pre-sized examples  
 %  17  2017-04-26 05:24  BryanP      BUGFIX: use setCombinWithLimits (finally available)  
 %  16  2017-04-09 22:42  BryanP      Added fRandomJoint for DP support 

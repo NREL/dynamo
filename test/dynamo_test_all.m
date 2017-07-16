@@ -56,8 +56,9 @@ fprintf('\n------ DOCTESTS -------\n')
 docs_to_test = {    
                     %Sets
                     'setSingleItem'
-                    'setCombinWithLimits'
                     'setList'
+                    'setBasic'
+                    'setCombinWithLimits'
                     %Random Processes
                     'rpDiscreteSample'
                     'rpLattice'

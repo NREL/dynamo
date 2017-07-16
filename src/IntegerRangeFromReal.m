@@ -24,14 +24,15 @@ function [integer_max, offset, step_size] = IntegerRangeFromReal( min_max, step_
 %   min_max = bsxfun(@plus, min_max, offset);
 %
 % Example:
-%     >> [integer_max, offset, step_size] = IntegerRangeFromReal([0 1 1.5 3 3.2 20; 2 2 3 4.2 4 80], [.5 .5 .3 .2 0 60])
+% >> format shortG
+% >> [integer_max, offset, step_size] = IntegerRangeFromReal([0 1 1.5 3 3.2 20; 2 2 3 4.2 4 80], [.5 .5 .3 .2 0 60])
 % 
 % integer_max =
-%      5     3     6     7    11     2
+%      5     3     6      7    11     2
 % offset =
-%          0    1.0000    1.5000    3.0000    3.2000   20.0000
+%      0     1     1.5    3    3.2    20
 % step_size =
-%     0.5000    0.5000    0.3000    0.2000    0.0800   60.0000
+%      0.5   0.5   0.3    0.2  0.08   60
 %
 %
 % Rebuild range and check
@@ -41,8 +42,8 @@ function [integer_max, offset, step_size] = IntegerRangeFromReal( min_max, step_
 %  >> min_max = bsxfun(@plus, min_max, offset)
 % 
 % min_max =
-%          0    1.0000    1.5000    3.0000    3.2000   20.0000
-%     2.0000    2.0000    3.0000    4.2000    4.0000   80.0000
+%     0    1    1.5    3      3.2   20
+%     2    2    3      4.2    4     80
 %
 %
 % adapted from a piece of SampleNdRange (v4) by Bryan Palmintier 2016
@@ -53,7 +54,8 @@ function [integer_max, offset, step_size] = IntegerRangeFromReal( min_max, step_
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
-%   2  2016-07-08 00:40  BryanP      BUGFIX: correct offset when min value not a multiple of step_size 
+%   3  2017-07-16 17:27  BryanP      Specify format as shortG for consistant doctests 
+%   2  2017-07-16 17:17  BryanP      BUGFIX: correct offset when min value not a multiple of step_size. Also update integer_max for 1-based indexing 
 %   1  2016-07-08 00:40  BryanP      Adapted from code in SampleNdRange v4
 
         if nargin < 3

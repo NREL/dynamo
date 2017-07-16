@@ -25,6 +25,7 @@ classdef rpLattice < RandProcess
 %    transitions
 %
 % Examples: (Note: extensive, comprehensive debugging in testrpLattice unit test)
+% >> format shortG
 % >> lattice_object = rpLattice(5, [0.5  1.2 1.5 ]', [0.15 0.5 0.35]', 3)
 % 
 % lattice_object = 
@@ -34,7 +35,7 @@ classdef rpLattice < RandProcess
 %            Start: 5
 %             Coef: [3×1 double]
 %         CondProb: [3×1 double]
-%              Tol: 1.0000e-04
+%              Tol: 0.0001
 %                t: 1
 %        cur_state: 5
 %             name: ''
@@ -51,6 +52,7 @@ classdef rpLattice < RandProcess
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  18  2017-07-16 17:27  BryanP      Specify format as shortG for consistant doctests 
 %  17  2017-07-16 00:13  BryanP      Use standardized conditionatlSample() in RandProcess 
 %  16  2017-07-15 22:13  BryanP      Use RandProcess reset() b/c no longer supports multiple starting conditions 
 %  15  2017-07-15 11:27  BryanP      BUGFIX: only build lattice to Tmax (artifact of t_start = 1) 
