@@ -17,12 +17,13 @@ function [min_max, real_values] = RealRangeFromInteger(integer_max, offset, step
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   2  2017-07-16 17:17  BryanP      Updated for 1-based indexing in integer_max
 %   1  2016-07-08 01:30  BryanP      Initial code
 
 % Initialize storage
 min_max = zeros(2, length(integer_max));
 % Setup 0:Integer range
-min_max(2,:) = integer_max .* step_size;
+min_max(2,:) = (integer_max - 1) .* step_size;
 % Now adjust offset
 min_max = bsxfun(@plus, min_max, offset);
 
@@ -30,6 +31,6 @@ min_max = bsxfun(@plus, min_max, offset);
 if nargout > 1
     real_values = cell(1, length(integer_max));
     for dim = 1:length(integer_max)
-        real_values{dim} = (0:integer_max(dim))' .* step_size(dim) + offset(dim);
+        real_values{dim} = (0:(integer_max(dim)-1))' .* step_size(dim) + offset(dim);
     end
 end
