@@ -57,6 +57,7 @@ docs_to_test = {
                     %Sets
                     'setSingleItem'
                     'setCombinWithLimits'
+                    'setList'
                     %Random Processes
                     'rpDiscreteSample'
                     'rpLattice'
