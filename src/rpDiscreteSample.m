@@ -243,8 +243,8 @@ classdef rpDiscreteSample < RandProcess
         function state_list = conditionalSample(obj, N, t, cur_state) %#ok<INUSD>
         %CONDITIONALSAMPLE draw state samples for the specified state
         %
-        % Since we don't have any time correlation, this is just a simple
-        % wrapper
+        % Since we don't have any time correlation, overload the more
+        % complex version in RandProcess with this simple wrapper
             state_list = obj.sample(N, t+1);
         end
     end

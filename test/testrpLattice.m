@@ -352,7 +352,7 @@ function testDlistNext(testCase)
     
     % --Test proper handling of -1<=t<=Tmax-1
     % For all time periods
-    for t = 1:testCase.TestData.tmax
+    for t = 1:testCase.TestData.tmax-1
         % For all possible states in this time period
         for s_idx = 1:length(testCase.TestData.lattice{t})
             s=testCase.TestData.lattice{t}(s_idx);

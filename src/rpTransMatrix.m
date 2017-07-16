@@ -84,6 +84,7 @@ classdef rpTransMatrix < RandProcess
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   2  2017-07-16 00:13  BryanP      Use standardized conditionatlSample() in RandProcess 
 %   1  2017-07-15 20:02  BryanP      Original version adapted from rpLattice v15
 
     % Internal properties
@@ -186,7 +187,7 @@ classdef rpTransMatrix < RandProcess
                 t = obj.t;
             end
             
-            [state_idx, t_lookup] = obj.checkState(obj, t, state_in);
+            [state_idx, t_lookup] = obj.checkState(t, state_in);
             
             % Find next value list
             next_prob = obj.Trans{t_lookup}(state_idx, :)';
@@ -200,44 +201,6 @@ classdef rpTransMatrix < RandProcess
     end
     
     methods (Access = protected)
-        function state_list = conditionalSample(obj, N, t, cur_state)
-        %CONDITIONALSAMPLE draw state samples for the specified state
-        %
-        % This helper function implements the conditional probability
-        % support specific to the subclass
-        %
-        % CONDITIONAL PROBABLITITY SUPPORT (Implemented in subclass via conditionalSample method)
-        %   state_list = sample(obj, N, t, cur_state)
-        %       Sample specified time using conditional probability
-        %       starting from provided state
-        %
-        %   Set cur_state to empty to use the object's current state
-
-            if nargin < 2 || isempty(N)
-                N = 1;
-            end
-            if nargin < 3 || isempty(t)
-                t = obj.t;
-            end
-            if nargin < 4 || isempty(cur_state)
-                cur_state = obj.cur_state;
-            end
-            
-            %Check that t and state match and make sense
-            obj.checkState(t, cur_state);
-            
-            %Extract possible next states & probabilities
-            [possible_states, prob] = obj.dlistnext (cur_state, t );
-            conditonal_cdf = cumsum(prob);
-
-            % Actually sample states
-            idx_list = zeros(N,1);
-            for samp_idx = 1:N
-                idx_list(samp_idx) = find(rand(1) <= conditonal_cdf, 1, 'first');
-            end
-            state_list = possible_states(idx_list);
-
-        end
     end
 
 end

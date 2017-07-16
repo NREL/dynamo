@@ -51,7 +51,8 @@ classdef rpLattice < RandProcess
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
-%  16  2017-07-15 22:13  BryanP      Use RandProcess reset() b/c no longer supports multiple initial states  
+%  17  2017-07-16 00:13  BryanP      Use standardized conditionatlSample() in RandProcess 
+%  16  2017-07-15 22:13  BryanP      Use RandProcess reset() b/c no longer supports multiple starting conditions 
 %  15  2017-07-15 11:27  BryanP      BUGFIX: only build lattice to Tmax (artifact of t_start = 1) 
 %  14  2017-07-15 weehr  BryanP      Overhaul: t_start = 1, RandProcess streamlining, debugging with testrpLattice 
 %  13  2017-07-14 05:48  BryanP      Only support value states 
@@ -364,88 +365,35 @@ classdef rpLattice < RandProcess
         %
         % If t and/or state are not defined, the current simulation time
         % and state are assumed
-            if nargin < 3
-                [state_list, prob] = obj.dlistnext(state_in, obj.t);
-                return
-            elseif t < 1
-                error('RandProcess:InvalidTime', 'Only t>=1 valid for rpLattice')
+            if nargin < 2 || isempty(state_in)
+                state_in = obj.cur_state;
             end
-
-            %find a valid time for state lookup, by limiting to LatticeTmax
-            t_lookup = min(t, obj.LatticeTmax);
-
-            if isempty(state_in) ...
-                    || not(all(ismembertol(state_in,obj.Values{t_lookup}, obj.Tol)))
-                error('RandProcess:InvalidState', 'State %g not valid at time=%d', state_in, t)
-            else
-                %if we get here, we know the state is valid for this time
-
-                if t > obj.LatticeTmax
-                    state_list = state_in;
-                else
-                    % Build next value list by multiplying
-                    % by coef required to get there
-                    state_list = RoundTo(state_in .* obj.Coef, obj.Tol);
-                end
-
-                if nargout > 1
-                    %Here the probability is easy... it is either
-                    if t > obj.LatticeTmax
-                        %one or
-                        prob = 1;
-                    else
-                        %our probability vector
-                        prob = obj.CondProb;
-                    end
-                end
-            end
-        end
-
-    end
-    
-    methods (Access = protected)
-        function state_list = conditionalSample(obj, N, t, cur_state)
-        %CONDITIONALSAMPLE draw state samples for the specified state
-        %
-        % This helper function implements the conditional probability
-        % support specific to the subclass
-        %
-        % CONDITIONAL PROBABLITITY SUPPORT (Implemented in subclass via conditionalSample method)
-        %   state_list = sample(obj, N, t, cur_state)
-        %       Sample specified time using conditional probability
-        %       starting from provided state
-        %
-        %   Set cur_state to empty to use the object's current state
-
-            if nargin < 2 || isempty(N)
-                N = 1;
-            end
+            
             if nargin < 3 || isempty(t)
                 t = obj.t;
             end
-            if nargin < 4 || isempty(cur_state)
-                cur_state = obj.cur_state;
-            end
             
-            %Check that t and state match and make sense
-            obj.checkState(t, cur_state);
-            
-            %Implement zero order hold
+            obj.checkState(t, state_in);
+            %if we get here, we know the state is valid for this time
+
             if t >= obj.LatticeTmax
-                state_list = repmat(cur_state, N, 1);
-                return
+                state_list = state_in;
+            else
+                % Build next value list by multiplying
+                % by coef required to get there
+                state_list = RoundTo(state_in .* obj.Coef, obj.Tol);
             end
-                
-            %Extract possible next states (discrete)
-            possible_states = RoundTo(cur_state .* obj.Coef, obj.Tol);
 
-            % Actually sample states
-            idx_list = zeros(N,1);
-            for samp_idx = 1:N
-                idx_list(samp_idx) = find(rand(1) <= obj.ConditionalCdf, 1, 'first');
+            if nargout > 1
+                %Here the probability is easy... it is either
+                if t >= obj.LatticeTmax
+                    %one or
+                    prob = 1;
+                else
+                    %our probability vector
+                    prob = obj.CondProb;
+                end
             end
-            state_list = possible_states(idx_list);
-
         end
     end
 
