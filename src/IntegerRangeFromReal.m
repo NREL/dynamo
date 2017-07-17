@@ -54,6 +54,7 @@ function [integer_max, offset, step_size] = IntegerRangeFromReal( min_max, step_
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   4  2017-07-16 20:47  BryanP      BUGFIX: properly handle zero and negative ranges with zero stepsizes 
 %   3  2017-07-16 17:27  BryanP      Specify format as shortG for consistant doctests 
 %   2  2017-07-16 17:17  BryanP      BUGFIX: correct offset when min value not a multiple of step_size. Also update integer_max for 1-based indexing 
 %   1  2016-07-08 00:40  BryanP      Adapted from code in SampleNdRange v4
@@ -66,15 +67,22 @@ function [integer_max, offset, step_size] = IntegerRangeFromReal( min_max, step_
         if any(step_size == 0)
             continuous_mask = (step_size == 0);
             step_size(continuous_mask) = ...
-                diff(min_max(:, continuous_mask), 1, 1) ./ (continuous_chunks);
+                (min_max(2, continuous_mask) - min_max(1, continuous_mask)) ./ (continuous_chunks);
+            % For any step sizes that are still zero (b/c min=max) or
+            % negative (b/c min<max), force step_size to 1 to avoid divide
+            % by zero errors or invalid states
+            step_size(step_size <= 0) = 1;
         end
             
         %Convert the discrete sample range to a set of integers
         d_min = round(min_max(1,:)./step_size, 0);
         d_max = round(min_max(2,:)./step_size, 0);
-
+        
         %Store range, add one to ensure we get both min and max
         integer_max = d_max - d_min + 1;
+        %Force any with min > max to zero (+1)
+        integer_max(integer_max <= 0) = 1; 
+
         offset = min_max(1,:);
 end
 
