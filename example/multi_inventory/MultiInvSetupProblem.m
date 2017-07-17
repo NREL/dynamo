@@ -86,7 +86,8 @@ function multi_inv_problem = MultiInvSetupProblem(multiinv_params, varargin)
 %              discount_rate: 0.03
 %                  n_periods: 4
 %                  ****
-
+%
+%
 % See also: MultiInvSetupParams
 
 % HISTORY
