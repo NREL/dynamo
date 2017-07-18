@@ -32,7 +32,8 @@ if nargin < 4
     cur_rand_state = [];
 end
 %get cur_rand_state as a cell vector
-cur_rand_state = utilRandSetCurState(cur_rand_state, cell_of_RandProcess);
+% JPB changed parameter order
+cur_rand_state = utilRandSetCurState(cell_of_RandProcess, cur_rand_state);
 
 if nargin < 5
     opt = [];
