@@ -14,6 +14,7 @@ function [results] = dpBI(problem, varargin)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- -------------------------------------
+%   8  2017-07-18 14:17    BryanP     Relocate dimension query call to fDecisionSet{!} to avoid call for each timestep 
 %   7  2017-06-29 14:17    JesseB     BUGFIX: added state_match_tol for ismembertol()
 %   6  2017-04-26 17:32    BryanP     BUGFIX: correct operations costs (now Working!) 
 %   5  2017-04-26 05:32    BryanP     Working? 
@@ -52,6 +53,11 @@ end
 values = cell(1, problem.n_periods + 1);
 pre_state_list = cell(1, problem.n_periods + 1);
 policy = cell(1, problem.n_periods);  %Contains optimal decisions for each state
+
+%find decision dimensions
+initial_state = problem.state_set{1}.as_array();
+first_decision_set = problem.fDecisionSet(problem.params, 1, initial_state(1, :));
+n_decision_dims = first_decision_set.N_dim;
 
 
 %% ====== Standardized Setup =====
@@ -136,8 +142,6 @@ for t = problem.n_periods:-1:1
     end
 
     %Initialize optimal policy (decision) storage
-    first_decision_set = problem.fDecisionSet(problem.params, t, pre_state_list{t}(1, :));
-    n_decision_dims = first_decision_set.N_dim;
     policy{t} = NaN(n_pre_states, n_decision_dims);
     values{t} = NaN(n_pre_states, 1);
         
