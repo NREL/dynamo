@@ -24,7 +24,7 @@ classdef rpLattice < RandProcess
 %  - For t>MaxT, the lattice is assumed to remain constant with no more
 %    transitions
 %
-% Examples: (Note: extensive, comprehensive debugging in testrpLattice unit test)
+% Examples and doctests: (Note: extensive, comprehensive debugging in testrpLattice unit test)
 % >> format shortG
 % >> lattice_object = rpLattice(5, [0.5  1.2 1.5 ]', [0.15 0.5 0.35]', 3)
 % 
@@ -52,6 +52,7 @@ classdef rpLattice < RandProcess
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  19  2017-07-18 11:28  BryanP      BUGFIX: corrected inconsistant order in dlistnext to (t,s) 
 %  18  2017-07-16 17:27  BryanP      Specify format as shortG for consistant doctests 
 %  17  2017-07-16 00:13  BryanP      Use standardized conditionatlSample() in RandProcess 
 %  16  2017-07-15 22:13  BryanP      Use RandProcess reset() b/c no longer supports multiple starting conditions 
@@ -297,7 +298,7 @@ classdef rpLattice < RandProcess
         % These need to be defined even for continuous processes, for
         % compatability with DP.
 
-        function [state_list, prob] = dlistprev (obj, state_in, t )
+        function [state_list, prob] = dlistprev (obj, t, state_in )
         % DLISTPREV List previous discrete states & probabilities
         %
         % List possible previous states along with conditional
@@ -306,14 +307,16 @@ classdef rpLattice < RandProcess
         % If t is not defined, the current simulation time is assumed
         %
         % Note: provided for user convenience 
-            if nargin < 3
-                if nargin < 2
-                    state_in = obj.cur_state;
-                end
-                [state_list, prob] = obj.dlistprev(state_in, obj.t);
-                return
-            elseif t <= 1
-                error('RandProcess:InvalidTime', 'Only t>1 valid for rpLattice')
+            if nargin < 2 || isempty(t)
+                t = obj.t;
+            end
+            
+            if nargin < 3 || isempty(state_in)
+                state_in = obj.cur_state;
+            end
+            
+            if t <= 1
+                error('RandProcess:InvalidTime', 'Only t>=1 valid for rpLattice')
             end
 
             %find a valid time for state lookup, by limiting to LatticeTmax
@@ -359,7 +362,7 @@ classdef rpLattice < RandProcess
             end
         end
 
-        function [state_list, prob] = dlistnext (obj, state_in, t )
+        function [state_list, prob] = dlistnext (obj, t, state_in )
         % DLISTNEXT List next discrete states & probabilities
         %
         % List possible next states (by number) along with conditional
@@ -367,12 +370,12 @@ classdef rpLattice < RandProcess
         %
         % If t and/or state are not defined, the current simulation time
         % and state are assumed
-            if nargin < 2 || isempty(state_in)
-                state_in = obj.cur_state;
+            if nargin < 2 || isempty(t)
+                t = obj.t;
             end
             
-            if nargin < 3 || isempty(t)
-                t = obj.t;
+            if nargin < 3 || isempty(state_in)
+                state_in = obj.cur_state;
             end
             
             obj.checkState(t, state_in);

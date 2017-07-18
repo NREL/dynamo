@@ -12,6 +12,7 @@ classdef RandProcess < AbstractSet
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  19  2017-07-18 11:28  BryanP      BUGFIX: corrected inconsistant order in dlistnext to (t,s) 
 %  18  2017-07-16 00:13  BryanP      Use standardized conditionatlSample() in RandProcess 
 %  17  2017-07-15 22:13  BryanP      Streamline reset() t no longer supports multiple initial states  
 %  16  2017-07-14 21:35  BryanP      Remove sim and dsim, distinquish N_uniqueT from Tmax 
@@ -330,7 +331,7 @@ classdef RandProcess < AbstractSet
             obj.checkState(t, cur_state);
             
             %Extract possible next states & probabilities
-            [possible_states, prob] = obj.dlistnext (cur_state, t );
+            [possible_states, prob] = obj.dlistnext (t, cur_state );
             conditonal_cdf = cumsum(prob);
 
             % Actually sample states

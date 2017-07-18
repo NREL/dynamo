@@ -85,6 +85,7 @@ classdef rpTransMatrix < RandProcess
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   5  2017-07-18 11:28  BryanP      BUGFIX: corrected inconsistant order in dlistnext to (t,s) 
 %   4  2017-07-18 10:32  BryanP      BUGFIX: incorrect field name in dlistnext 
 %   3  2017-07-16 17:27  BryanP      Specify format as shortG for consistant doctests 
 %   2  2017-07-16 00:13  BryanP      Use standardized conditionatlSample() in RandProcess 
@@ -174,7 +175,7 @@ classdef rpTransMatrix < RandProcess
         % These need to be defined even for continuous processes, for
         % compatability with DP.
 
-        function [state_list, prob] = dlistnext (obj, state_in, t )
+        function [state_list, prob] = dlistnext (obj, t, state_in )
         % DLISTNEXT List next discrete states & probabilities
         %
         % List possible next states (by number) along with conditional

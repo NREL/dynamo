@@ -11,6 +11,7 @@ function tests = testrpLattice
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   8  2017-07-18 11:28  BryanP      BUGFIX: corrected inconsistant order in dlistnext to (t,s) 
 %   7  2017-07-15 14:40  BryanP      Overhaulled tests for rpLattice v15 
 %   6  2017-07-14 22:55  BryanP      Updated to use internal MATLAB unit test framework (post R2013) 
 %   5  2012-04-17 08:55  BryanP      Reworked cdf for sim/sample 
@@ -288,15 +289,15 @@ end
 %% Test Dlistprev method
 function testDlistPrev(testCase)
     % Test proper handling of t<0
-    bad = @() testCase.TestData.lattice_object.dlistprev(testCase.TestData.lattice{1},-1);
+    bad = @() testCase.TestData.lattice_object.dlistprev(-1, testCase.TestData.lattice{1});
     testCase.verifyError(bad, 'RandProcess:InvalidTime')
     
     % Test proper handling of t=0
-    bad = @() testCase.TestData.lattice_object.dlistprev(testCase.TestData.lattice{1},0);
+    bad = @() testCase.TestData.lattice_object.dlistprev(0, testCase.TestData.lattice{1});
     testCase.verifyError(bad, 'RandProcess:InvalidTime')
 
     % Test proper handling of t=1 (because can't go backwards from t=1
-    bad = @() testCase.TestData.lattice_object.dlistprev(testCase.TestData.lattice{1},1);
+    bad = @() testCase.TestData.lattice_object.dlistprev(1, testCase.TestData.lattice{1});
     testCase.verifyError(bad, 'RandProcess:InvalidTime')
 
     % --Test proper handling of previous states for t = 2<=t<=Tmax
@@ -312,7 +313,7 @@ function testDlistPrev(testCase)
         s=testCase.TestData.lattice{t_max}(s_idx);
 
         for t = t_max+1:t_max+10
-            [prev_v, p] = testCase.TestData.lattice_object.dlistprev(s, t);
+            [prev_v, p] = testCase.TestData.lattice_object.dlistprev(t, s);
             testCase.verifyEqual(prev_v, s);
             testCase.verifyEqual(p, 1);
         end
@@ -320,12 +321,12 @@ function testDlistPrev(testCase)
     
     
     %Test a totally invalid state
-    bad = @() testCase.TestData.lattice_object.dlistprev(98, 2);
+    bad = @() testCase.TestData.lattice_object.dlistprev(2, 98);
     testCase.verifyError(bad, 'RandProcess:InvalidState')
         
     %Test using testCase.TestData.lattice_object valid states but at the wrong time
     for t = 2:testCase.TestData.tmax
-        bad = @() testCase.TestData.lattice_object.dlistprev(testCase.TestData.lattice{t-1}(1),t);
+        bad = @() testCase.TestData.lattice_object.dlistprev(t, testCase.TestData.lattice{t-1}(1));
         testCase.verifyError(bad, 'RandProcess:InvalidState')
     end
     
@@ -347,7 +348,7 @@ end
 %% Test Dlistnext method
 function testDlistNext(testCase)
     % Test proper handling of t<-1 
-    bad = @() testCase.TestData.lattice_object.dlistprev(testCase.TestData.lattice{1},-2);
+    bad = @() testCase.TestData.lattice_object.dlistnext(-2, testCase.TestData.lattice{1});
     testCase.verifyError(bad, 'RandProcess:InvalidTime')
     
     % --Test proper handling of -1<=t<=Tmax-1
@@ -356,7 +357,7 @@ function testDlistNext(testCase)
         % For all possible states in this time period
         for s_idx = 1:length(testCase.TestData.lattice{t})
             s=testCase.TestData.lattice{t}(s_idx);
-            [next_v, p] = testCase.TestData.lattice_object.dlistnext(s,t);
+            [next_v, p] = testCase.TestData.lattice_object.dlistnext(t,s);
             
             testCase.verifyEqual(next_v, s .* testCase.TestData.coef, 'AbsTol', 1e-6)
             testCase.verifyEqual(p, testCase.TestData.prob)
@@ -369,19 +370,19 @@ function testDlistNext(testCase)
         s=testCase.TestData.lattice{t_max}(s_idx);
 
         for t = t_max+1:t_max+10
-            [next_v, p] = testCase.TestData.lattice_object.dlistnext(s, t);
+            [next_v, p] = testCase.TestData.lattice_object.dlistnext(t,s);
             testCase.verifyEqual(next_v, s);
             testCase.verifyEqual(p, 1);
         end
     end
     
     %Test a totally invalid state
-    bad = @() testCase.TestData.lattice_object.dlistnext(98,1);
+    bad = @() testCase.TestData.lattice_object.dlistnext(1, 98);
     testCase.verifyError(bad, 'RandProcess:InvalidState')
         
     %Test using a valid states but at the wrong time
     for t = 1:testCase.TestData.tmax-1
-        bad = @() testCase.TestData.lattice_object.dlistnext(testCase.TestData.lattice{t+1}(1),t);
+        bad = @() testCase.TestData.lattice_object.dlistnext(t, testCase.TestData.lattice{t+1}(1));
         testCase.verifyError(bad, 'RandProcess:InvalidState')
     end
     
@@ -389,7 +390,7 @@ function testDlistNext(testCase)
     t=1;
     for s_idx = 1:length(testCase.TestData.lattice{t})
         s=testCase.TestData.lattice{t}(s_idx);
-        [next_v, p] = testCase.TestData.lattice_object.dlistnext(s);
+        [next_v, p] = testCase.TestData.lattice_object.dlistnext([], s);
 
         testCase.verifyEqual(next_v, RoundTo(s .* testCase.TestData.coef, testCase.TestData.lattice_object.Tol))
         testCase.verifyEqual(p, testCase.TestData.prob)
@@ -401,7 +402,7 @@ function testDlistNext(testCase)
     % value only
     for s_idx = 1:length(testCase.TestData.lattice{t})
         s=testCase.TestData.lattice{t}(s_idx);
-        [next_v] = testCase.TestData.lattice_object.dlistnext(s,t);
+        [next_v] = testCase.TestData.lattice_object.dlistnext(t,s);
 
         testCase.verifyEqual(next_v, RoundTo(s .* testCase.TestData.coef, testCase.TestData.lattice_object.Tol))
     end   
@@ -575,15 +576,15 @@ function CheckPrevStates(testCase, t, num_out)
         s=testCase.TestData.lattice{t}(s_idx);
         if specify_t
             if num_out == 2
-                [prev_v, p] = testCase.TestData.lattice_object.dlistprev(s,t);
+                [prev_v, p] = testCase.TestData.lattice_object.dlistprev(t,s);
             else
-                prev_v = testCase.TestData.lattice_object.dlistprev(s,t);
+                prev_v = testCase.TestData.lattice_object.dlistprev(t,s);
             end
         else
             if num_out == 2
-                [prev_v, p] = testCase.TestData.lattice_object.dlistprev(s);
+                [prev_v, p] = testCase.TestData.lattice_object.dlistprev([],s);
             else
-                prev_v = testCase.TestData.lattice_object.dlistprev(s);
+                prev_v = testCase.TestData.lattice_object.dlistprev([],s);
             end
         end
 
