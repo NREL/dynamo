@@ -301,8 +301,9 @@ classdef faLocalAvg < FuncApprox
                             end
 
                             %-v- actually do the merging for this point
-                            obj.NewPts(merge_dest, :) = mean(obj.NewPts(merge_set, :));
-                            norm_new_pts(merge_dest, :) = mean(norm_new_pts(merge_set, :));
+                            % JPB
+                            obj.NewPts(merge_dest, :) = mean(obj.NewPts(merge_set, :),1);
+                            norm_new_pts(merge_dest, :) = mean(norm_new_pts(merge_set, :),1);
                             obj.NewVals(merge_dest, :) = mean(obj.NewVals(merge_set, :));
                             new_num_pts_merged(merge_dest) = sum(new_num_pts_merged(merge_set));
 
