@@ -9,19 +9,25 @@ function cur_rand_state = utilRandSetCurState(cell_of_RandProcess, cur_rand_stat
 % 
 % ans = 
 % 
-%     [1]    [1x2 double]
+%   1×2 cell array
+% 
+%     [1]    [1×2 double]
 % 
 % >> utilRandSetCurState(rp_set, {1, [100, 200]})
 % 
 % ans = 
 % 
-%     [1]    [1x2 double]
+%   1×2 cell array
+% 
+%     [1]    [1×2 double]
 % 
 % >> utilRandSetCurState(rp_set, [1 100 200])
 % 
 % ans = 
 % 
-%     [1]    [1x2 double]
+%   1×2 cell array
+% 
+%     [1]    [1×2 double]
 %
 %
 % See also: RandSetSample, RandSetNextJoint, RandProcess
@@ -29,6 +35,7 @@ function cur_rand_state = utilRandSetCurState(cell_of_RandProcess, cur_rand_stat
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   2  2017-07-14 20:08  BryanP      Update doctests for new output style 
 %   1  2017-04-10 17:05  BryanP      Extracted and expanded from RandSetNetJoint v1 
 
 n_rp = length(cell_of_RandProcess);

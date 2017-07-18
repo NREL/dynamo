@@ -77,20 +77,44 @@ classdef rpDiscreteSample < RandProcess
 % 
 % ans =
 % 
-%     20    21
+%     10    11
 % 
 % >> s.step()
 % 
 % ans =
 % 
-%     10    11
+%     30    31
 % 
 % >> s.t
 % 
 % ans =
 % 
 %      4
-% 
+%
+%
+%--Range tests
+% >> s = rpDiscreteSample({[0 1; 1 2; 3 4; 5 6], [10 11; 20 21; 30 31]});
+% >> s.range()
+%
+% ans =
+%
+%      0     1
+%      5     6
+%
+% >> s.range(2)
+%
+% ans =
+%
+%     10    11
+%     30    31
+%
+% >> s.range('all')
+%
+% ans =
+%
+%      0     1
+%     30    31
+%
 %
 % see also RandProc, rpDeterministic, rpMarkov, rpLattice
 %
@@ -99,6 +123,9 @@ classdef rpDiscreteSample < RandProcess
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  16  2017-07-15 14:42  BryanP      BUGFIX: conditionalSample for next time period 
+%  15  2017-07-14 21:35  BryanP      Remove sim and dsim, distinquish N_uniqueT from Tmax 
+%  14  2017-07-14 11:10  BryanP      Refactor generally usable code to RandProc 
 %  13  2017-04-25 07:42  BryanP      Allow empty state since we are time independant
 %  12  2017-04-05 23:42  BryanP      Bugfixes & add checkState()
 %  11  2017-04-05 22:02  BryanP      Overhaul complete:
@@ -121,122 +148,62 @@ classdef rpDiscreteSample < RandProcess
 %   1  2011-04-08 14:30  BryanP      Adapted from rpLattice v6
 
 
-    % Internal properties
-    properties (Access='protected')
-        Vlist = {};    % cell row vector of values
-        Plist = {};    % cell row vector of probabilities
-
-        CdfList = {};   % cumulative distribution for each time period
-        Tmax = 1;       % Largest time with specified distribution
-        Tol = 1e-6;      % Tolerance for checking probabilities sum to 1
-    end
-
     methods
         %% ===== Constructor & related
         function obj = rpDiscreteSample(v_list, p_list)
             % Support zero parameter calls to constructor for special
             % MATLAB situations (see help files)
             if nargin == 0
-                obj.Vlist = v_list;
-                obj.Plist = p_list;
+                v_list = obj.Values;
+                p_list = obj.UncondProbs;
             end
             
             %-- Extract dimensional data
-            %Note: Tmax is the max t with a unique value list. passing
-            %a t>Tmax will simply return the Tmax values (zero order
+            %Note: N_uniqueT is the max t with a unique value list. passing
+            %a t>N_uniqueT will simply return the N_uniqueT values (zero order
             %hold)
-            obj.Tmax = length(v_list);
             obj.N_dim = size(v_list{1},2);
 
             % If probabilites not provided, assume uniform across all
             % values
             if nargin < 2
-                obj.Plist = cell(size(v_list));
-                for t_idx = 1:obj.Tmax
+                obj.UncondProbs = cell(size(v_list));
+                for t_idx = 1:length(v_list)
                     num_states = size(v_list{t_idx},1);
-                    obj.Plist{t_idx} = ones(num_states,1) ./ num_states;
+                    obj.UncondProbs{t_idx} = ones(num_states,1) ./ num_states;
                 end
 
             else
-                obj.Plist = p_list;
+                obj.UncondProbs = p_list;
             end
             
             % Store state value list
-            obj.Vlist = v_list;
+            obj.Values = v_list;
 
 
             % Loop through time for setting up additional parameters
-            for t_idx = 1:obj.Tmax
+            for t_idx = 1:obj.N_uniqueT
                 %Create Cumulative distribution function for easier
                 %mapping of random samples
-                obj.CdfList{t_idx} = cumsum(obj.Plist{t_idx});
+                obj.UncondCdfs{t_idx} = cumsum(obj.UncondProbs{t_idx});
 
                 %Check for valid probability vectors 
                 %  Probability must sum to 1
-                if abs(obj.CdfList{t_idx}(end) - 1) > obj.Tol
+                if abs(obj.UncondCdfs{t_idx}(end) - 1) > obj.Tol
                     error('RandProc:ProbSum1', 'Probabilities must sum to 1.0 for t=%d', t_idx)
                 end
 
                 %  Must be same size as value list
-                if size(obj.Plist{t_idx}) ~= size(obj.Vlist{t_idx})
+                if size(obj.UncondProbs{t_idx}) ~= size(obj.Values{t_idx})
                     error('rpDiscreteSample:ValProbMismatch', 'Value & Probability vectors must have equal size for time=%d', t_idx)
                 end
             end
             obj.reset();
         end
         
-        %% == Additional public methods
-        function state_list = sample(obj, N, t, varargin)
-            %SAMPLE draw state samples for the given time
-            % 
-            % Usage:
-            %   state_list = disc_samp_object.sample()
-            %       One sample state from current time & state
-            %   state_list = sample(obj, N)
-            %       Return N samples from current time & state
-            %   state_list = sample(obj, N, t, state)
-            %       Specify time period & state (though state doesn't matter here) 
-            if nargin < 2
-                N = 1;
-            end
-            
-            if nargin < 3 || isempty(t)
-                t=obj.t;
-            end
-            
-            %Handle any non integer or large values for time
-            t = min(floor(t), obj.Tmax);
-
-            idx_at_t = zeros(N,1);
-            for samp_idx = 1:N
-                idx_at_t(samp_idx) = find(rand(1) <= obj.CdfList{t}, 1, 'first');
-            end
-            state_list = obj.Vlist{t}(idx_at_t,:);
-        end
-
         %% ===== Support for discrete usage
         % These need to be defined even for continuous processes, for
         % compatability with DP.
-
-        function state_list = dlist (obj, t)
-        % DLIST List possible discrete states
-        %
-        % List possible discrete states by number for given time
-        % if t is not listed, the states for the current simulation time
-        % are returned.
-        %
-        % To get a list of all possible states pass with t='all'
-        %
-        % Note: probabilities can't be returned, since transition probabilities
-        % are in general a function of the current state.
-            if nargin < 2 || isempty(t)
-                state_list = obj.dlist(obj.t);
-            elseif (ischar(t) && strcmp(t, 'all'))
-                state_list = unique(cell2mat(obj.Vlist'),'rows');
-            else
-                state_list = obj.state_info(t);
-            end
-        end
 
         function [next_state_list, probability_list] = dlistnext (obj, t, cur_state)
         % DLISTNEXT List next discrete states & probabilities
@@ -254,7 +221,7 @@ classdef rpDiscreteSample < RandProcess
             end
             
             % adapt time to give valid index
-            t = min(floor(t), obj.Tmax);
+            t = min(floor(t), obj.N_uniqueT);
             
             % Allow empty state since we are time independant
             if not(isempty(cur_state))
@@ -270,204 +237,16 @@ classdef rpDiscreteSample < RandProcess
             [next_state_list, probability_list] = obj.state_info(t+1);
         end
 
-        function state_series = dsim(obj, t_list, initial_value) %#ok<INUSD>
-        % DSIM Simulate discrete process.
-        %
-        % A column vector for t is assumed to be a series of times for
-        % which to return results. Intermediate times are also computed, if
-        % needed, but not returned. The initial value is not returned in
-        % the value series. Only one simulation is run, such that out of
-        % order times will be sorted before simulation and duplicate times
-        % will return the same result
-        %
-        % Invalid times (t<1) return NaN
-        %
-        % Note: after calling dsim, the process internal time will be set to
-        % the final value of t_list
-
-            %identify valid simulation times
-            ok = (t_list >= 1);
-
-            %initialize outputs
-            state_series = zeros(size(t_list),obj.N_dim);
-            state_series(not(ok),:) = NaN;
-
-            %only simulate valid values of t_list
-            t_list = t_list(ok);
-
-            %only run the simulation if there are valid times to simulate.
-            %If not, we have already filled the value list with NaNs and
-            %can skip ahead to the state list if requested.
-            if not(isempty(t_list))
-                %Find times we need to sample
-                [t_list, ~, sample_map] = unique(t_list);
-
-                %initalize sample results vectors
-                v_list = zeros(size(t_list, obj.N_dim));
-
-                %Sample all required times
-                for t_idx = 1:length(t_list)
-                    v_list = obj.sample(t_list(t_idx));
-                end
-
-                %Set the current state
-                obj.t = t_list(end);
-                obj.cur_state = v_list(end, :);
-
-                %Reorder samples to match the valid input times
-                v_list = v_list(sample_map,:);
-
-                %Now Stuff the correct values into the full output list
-                state_series(ok,:) = v_list;
-            end
-        end
-
-        %% ===== General (discrete or continuous) Methods
-        function state_series = sim(obj, t_list, initial_state)
-        % SIM Simulate process for desired (continuous) times
-        %
-        % A column vector for t is assumed to be a series of times for
-        % which to return results. Intermediate times are also computed, if
-        % needed. The initial value is not returned in the value series.
-        %
-        % Function must handle arbitrary positive values for t_list
-        % Invalid times (t<=1) return NaN
-        %
-        % Note: after calling sim, the process internal time will be set to
-        % the final value of t_list
-        %
-        % This implementation typically rounds down to the nearest integer
-        % (zero order hold)
-            if nargin < 3
-                initial_state = [];
-            end
-            state_series = obj.dsim(floor(t_list), initial_state);
-        end
-
-        function value_range = range(obj, t)
-        % RANGE Find value range for given time
-        %
-        % Returns vector with [min max] value range for specified time
-        % if t is not provided, the range for the current simulation time
-        % is returned.
-        %
-        % To get the possible range across all times use t='all'
-        %
-        % Examples
-        % >> s = rpDiscreteSample({[0 1; 1 2; 3 4; 5 6], [10 11; 20 21; 30 31]});
-        % >> s.range()
-        %
-        % ans =
-        %
-        %      0     1
-        %      5     6
-        %
-        % >> s.range(2)
-        %
-        % ans =
-        %
-        %     10    11
-        %     30    31
-        %
-        % >> s.range('all')
-        %
-        % ans =
-        %
-        %      0     1
-        %     30    31
-        
-            if nargin < 2 || isempty(t)
-                t= obj.t;
-            end
-
-            if ischar(t) && strcmp(t, 'all')
-                state_list_to_range = cell2mat(obj.Vlist');
-            else
-                %Handle any non-integer or large values
-                t = min(floor(t), obj.Tmax);
-
-                if t < 1;
-                    error('RandProcess:InvalidTime', 'Only t>=1 valid for rpDiscreteSample')
-                else
-                    state_list_to_range = obj.Vlist{t};
-                end
-            end
-            value_range = [min(state_list_to_range); max(state_list_to_range)];
-        end
-
-
-        %% ===== Additional simulation support
-        function [state, t] = step(obj, delta_t)
-        %STEP simulate forward or backward
-        %
-        % by default steps forward by delta_t = 1
-            if nargin < 2
-                delta_t = 1;
-            end
-            %compute the proposed new time
-            new_t = obj.t + delta_t;
-
-            %check if it is valid, if not return empty results
-            if new_t < 1
-                state = [];
-                t = obj.t;
-                return
-            else
-                %if new time is valid simulate forward as needed
-                if floor(obj.t) == floor(new_t)
-                    %No need to actually change, b/c we have discrete steps
-                    %that round
-                    state = obj.cur_state;
-                else
-                    t = new_t;
-                    state = obj.sample(1, t);
-
-                    % Update our stored state
-                    obj.t = t;
-                    obj.cur_state = state;
-
-                end
-
-            end
-
-        end
-        
-        function state_ok = checkState(obj, t, state)
-            % CHECKSTATE Check that state is valid for a given time
-            %
-            % rand_proc_object.checkState(t, state)
-            %       Raise 'RandProc:InvalidState' error if t is not valid in time t
-            % state_ok = rand_proc_object.checkState(t, state)
-            %       No error, simply return true/false if state is
-            %       valid/not
-            state_ok = not(isempty(state)) && ismember(state, obj.Vlist{t}, 'rows');
-            
-            if nargout == 0 && not(state_ok)
-                error('RandProcess:InvalidState', 'State %s is not valid at time %d', state, t)
-            end
-        end
     end
-    
+ 
     methods (Access = protected)
-        %% ===== Helper Functions
-        function [state_list, prob] = state_info (obj, t )
-            % STATE_INFO Helper function to return full set of state
-            % information for a given time
-            if t < 1
-                error('RandProcess:InvalidTime', 'Only t>1 valid for rpDiscreteSample')
-            else
-                % make sure time is an integer
-                t = floor(t);
-                
-                % and use t=Tmax for any t>Tmax
-                t = min(t, obj.Tmax);
-                
-                %if we get here, we know the time is valid
-                state_list = obj.Vlist{t};
-                prob = obj.Plist{t};
-            end
+        function state_list = conditionalSample(obj, N, t, cur_state) %#ok<INUSD>
+        %CONDITIONALSAMPLE draw state samples for the specified state
+        %
+        % Since we don't have any time correlation, overload the more
+        % complex version in RandProcess with this simple wrapper
+            state_list = obj.sample(N, t+1);
         end
-        
     end
     
 end

@@ -10,6 +10,7 @@ classdef AbstractSet < handle
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   5  2017-07-16 10:36  BryanP      Decouple sample dimensions from state dimensions for correlated state sampling  
 %   4  2016-09-30 11:13  BryanP      Adding optional pt_dim_names property 
 %   3  2016-09-29 14:30  BryanP      Bug fixes from testing with setBasic and demoSets 
 %   2  2016-09-29 11:50  BryanP      Updated for only one time period and to allow on the fly sample_setup 
@@ -22,15 +23,16 @@ classdef AbstractSet < handle
     
     % Read-only properties (set by constructor)
     properties (SetAccess='protected')
-        SampleType = '';    % Must support 'rand' & 'sobol' and gracefully handle unrecognized types
-        N_dim = 0;                  % Number of dimensions in set's space
+        SampleType = '';        % Must support 'rand' & 'sobol' and gracefully handle unrecognized types
+        N_dim = 0;              % Number of dimensions in set's space
         DiscreteMask;           % Boolean mask of descrete dimesions of set
     end
     
     % Internal properties
     properties (Access='protected')
-        SampleParams = struct(  'fSample',     [] ... % (Quasi-)random sample function
+        SampleParams = struct(  'fSample',     [] ...   % (Quasi-)random sample function
                              );  %Note Set and Offset added when using Sobol samples
+        n_sample_dims = [];   % Specify number of dimension in random sample, if different from N_dim (default)
     end
     
     methods
@@ -66,14 +68,21 @@ classdef AbstractSet < handle
                 return
             end
             
+            %Determine number of dimensions
+            if isempty(obj.n_sample_dims)
+                n_dim = obj.N_dim;
+            else
+                n_dim = obj.n_sample_dims;
+            end
+            
             %Otherwise setup sampling as needed
             obj.SampleType = sample_type;
 
             switch lower(sample_type)
                 case 'rand'
-                    obj.SampleParams.fSample = @(N) rand(N, obj.N_dim);
+                    obj.SampleParams.fSample = @(N) rand(N, n_dim);
                 case 'sobol'
-                    obj.SampleParams.Set = sobolset(obj.N_dim);
+                    obj.SampleParams.Set = sobolset(n_dim);
                     obj.SampleParams.Set.scramble('MatousekAffineOwen');
 
                     % Setup function to provide a series of quasi-random state samples
@@ -146,7 +155,7 @@ classdef AbstractSet < handle
         % Returns vector with [min max] value range for specified time
         % if t is not provided, the range for the current simulation time
         % is returned.
-        [value_range, state_n_range] = range(obj, t)            
+        value_range = range(obj, t)            
     end %Abstract methods
 
 end

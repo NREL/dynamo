@@ -1,10 +1,11 @@
-function doctest(func_or_class, varargin)
+function [all_pass, n_pass, n_tests] = doctest(func_or_class, varargin)
 % Run examples embedded in documentation
 %
 % doctest func_name
 % doctest('func_name')
 % doctest class_name
 % doctest('class_name')
+% [all_pass, n_pass, n_tests] = doctest( __ )
 %
 % Example:
 % Say you have a function that adds 7 to things:
@@ -114,6 +115,9 @@ function doctest(func_or_class, varargin)
 %
 % The latest version from the original author, Thomas Smith, is available
 % at http://bitbucket.org/tgs/doctest-for-matlab/src
+%
+% UPDATED 2017-07-14 by Bryan Palmintier to print number passed and return
+% results for use in larger functions
 
 p = inputParser;
 p.addOptional('CreateLinks', true);
@@ -188,13 +192,16 @@ end
 % Print the results
 %
 
-test_anything(result, verbose, createLinks);
+n_pass = test_anything(result, verbose, createLinks);
 
-
+if nargout > 0
+    n_tests = length(result);
+    all_pass = ( n_pass == n_tests );
+end
 end
 
 
-function test_anything(results, verbose, createLinks)
+function n_pass = test_anything(results, verbose, createLinks)
 % Prints out test results in the Test Anything Protocol format
 %
 % See http://testanything.org/
@@ -204,9 +211,11 @@ out = 1; % stdout
 
 fprintf(out, 'TAP version 13\n')
 fprintf(out, '1..%d\n', numel(results));
+n_pass = 0;
 for I = 1:length(results)
     if results(I).pass
         ok = 'ok';
+        n_pass = n_pass + 1;
     else
         ok = 'not ok';
     end
@@ -222,5 +231,11 @@ for I = 1:length(results)
     end
 end
 
+if n_pass == length(results)
+    fprintf(out, 'PASS')
+else
+    fprintf(out, 'FAIL')
+end
+fprintf(out, ': %d/%d tests pass (%g%%)\n', n_pass, length(results), round(n_pass/length(results)*100,1))
 
 end

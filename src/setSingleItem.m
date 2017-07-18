@@ -3,6 +3,7 @@ classdef setSingleItem < AbstractSet
 %
 % Examples:
 %
+% >> format shortG
 % >> my_set = setSingleItem([1 2 3 4 5.6]);
 % >> my_set.N_dim
 %
@@ -14,22 +15,22 @@ classdef setSingleItem < AbstractSet
 % 
 % ans =
 % 
-%     1.0000    2.0000    3.0000    4.0000    5.6000
+%     1    2    3    4    5.6
 % 
 % >> my_set.sample(4)
 % 
 % ans =
 % 
-%     1.0000    2.0000    3.0000    4.0000    5.6000
-%     1.0000    2.0000    3.0000    4.0000    5.6000
-%     1.0000    2.0000    3.0000    4.0000    5.6000
-%     1.0000    2.0000    3.0000    4.0000    5.6000
+%     1    2    3    4    5.6
+%     1    2    3    4    5.6
+%     1    2    3    4    5.6
+%     1    2    3    4    5.6
 % 
 % >> my_set.as_array()
 % 
 % ans =
 % 
-%     1.0000    2.0000    3.0000    4.0000    5.6000
+%     1    2    3    4    5.6
 % 
 %
 % %Note: supports automatic column to row conversions
@@ -49,6 +50,8 @@ classdef setSingleItem < AbstractSet
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   4  2017-07-16 17:27  BryanP      Specify format as shortG for consistant doctests 
+%   3  2017-07-16 10:17  BryanP      Correct comments 
 %   2  2017-04-03 10:00  BryanP      Added doctests 
 %   1  2017-04-03 09:30  BryanP      Adapted from setBasic v6 
 
@@ -61,9 +64,9 @@ classdef setSingleItem < AbstractSet
         function obj = setSingleItem(value_row_vector, ~)
         % CONSTRUCTOR (setSingleItem)
         %
-        % obj = setNBasic(sample_minmax, sample_type)
+        % obj = setSingleItem(value_row_vector)
         %
-        % obj = setBasic(sample_minmax, sample_type, sample_step)
+        % obj = setSingleItem(value_row_vector, (unused) sample_type)
 
             %Support blank calls per object requirements for serializing
             if nargin == 0

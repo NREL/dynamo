@@ -127,7 +127,7 @@ classdef rpDeterministic < RandProcess
             end
         end
 
-        function [value_list, state_n_list, prob] = dlistnext (obj, state_n, t )
+        function [value_list, state_n_list, prob] = dlistnext (obj, t, state_n )
         % DLISTNEXT List next discrete states & probabilities
         %
         % List possible next states (by number) along with conditional
@@ -139,7 +139,7 @@ classdef rpDeterministic < RandProcess
                 if nargin < 2
                     state_n = obj.StateNumSeries(min(obj.n,obj.t+1));
                 end
-                [value_list, state_n_list, prob] = obj.dlistnext(state_n, obj.t);
+                [value_list, state_n_list, prob] = obj.dlistnext(obj.t, state_n);
             elseif t < -1;
                 error('RandProcess:InvalidTime', 'Only t>0 valid for rpList')
             else

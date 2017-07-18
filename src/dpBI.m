@@ -130,7 +130,7 @@ for t = problem.n_periods:-1:1
     %>>>     compute before_decision operations cost (vectorized)
     if not(isempty(problem.fOpsBeforeDecision))
         % Compute unique ops costs, using internal Ops loop
-        before_dec_ops = problem.fOpsBeforeDecision(params_only, t, pre_state_list{t});
+        before_dec_ops = problem.fOpsBeforeDecision(problem.params, t, pre_state_list{t});
     else
         before_dec_ops = zeros(n_pre_states, 1);
     end

@@ -71,7 +71,7 @@ params.max_inv = floor(params.total_space ./ params.unit_space);
 if iscell(params.p_demand)
     % Cell contains specified vectors of demand per product
     %TODO add dimension checks
-    for p = 1:params.n_products;
+    for p = 1:params.n_products
         %ensure we have a column for consistancy with the poisspdf
         %representation for vectorized operations
         if isrow(params.p_demand{p})
@@ -92,7 +92,7 @@ else
         assert(length(params.p_demand) == params.n_products, 'Must specify a poisson lambda demand for each item')
         temp_p_demand = cell(1, params.n_products);
         
-        for p = 1:params.n_products;
+        for p = 1:params.n_products
             temp_p_demand{p} = poisspdf(0:(params.max_inv(p)-1),params.p_demand(p))';
             % lump any additional demand into the
             % highest demand... this seems consistant with the idea that any

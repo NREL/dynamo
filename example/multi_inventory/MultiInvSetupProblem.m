@@ -19,6 +19,7 @@ function multi_inv_problem = MultiInvSetupProblem(multiinv_params, varargin)
 %
 % Examples (and doctest):
 %
+% >> format shortG
 % >> params = {'total_space', 3; 'unit_space', 1; 'p_demand', [0.25; 0.5; 0.25] };
 % >> params = MultiInvSetupParams(params);
 % >> multi_inv_problem = MultiInvSetupProblem(params)
@@ -28,9 +29,9 @@ function multi_inv_problem = MultiInvSetupProblem(multiinv_params, varargin)
 %   struct with fields:
 % 
 %                     params: [1×1 struct]
-%              discount_rate: 0.1000
+%              discount_rate: 0.1
 %                  n_periods: 3
-%                  state_set: {1×4 cell}
+%                  state_set: {[1×1 setCombinWithLimits] [1×1 setCombinWithLimits] [1×1 setCombinWithLimits] [1×1 setCombinWithLimits]}
 %             fTerminalValue: @MultiInvTerminalValue
 %               fDecisionSet: @MultiInvDecisionSet
 %              fDecisionCost: @MultiInvDecisionCost
@@ -69,7 +70,7 @@ function multi_inv_problem = MultiInvSetupProblem(multiinv_params, varargin)
 %   struct with fields:
 % 
 %                     params: [1×1 struct]
-%              discount_rate: 0.2000
+%              discount_rate: 0.2
 %                  n_periods: 5
 %                  ****
 %
@@ -82,15 +83,17 @@ function multi_inv_problem = MultiInvSetupProblem(multiinv_params, varargin)
 %   struct with fields:
 % 
 %                     params: [1×1 struct]
-%              discount_rate: 0.0300
+%              discount_rate: 0.03
 %                  n_periods: 4
 %                  ****
-
+%
+%
 % See also: MultiInvSetupParams
 
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   3  2017-07-16 17:27  BryanP      Specify format as shortG for consistant doctests 
 %   2  2017-06-14 06:33  BryanP      Doctests and fixed subfunctions 
 %   1  2017-06-14 05:06  BryanP      Extracted from MultiInv_demo v18 
 

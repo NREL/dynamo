@@ -251,7 +251,7 @@ classdef rpMarkov < RandProcess
             %then applying Bayes theory: doable but a bit of a hassle
         end
 
-        function [value_list, state_n_list, prob] = dlistnext (obj, state_n, t )
+        function [value_list, state_n_list, prob] = dlistnext (obj, t, state_n )
         % DLISTNEXT List next discrete states & probabilities
         %
         % List possible next states (by number) along with conditional
@@ -262,7 +262,7 @@ classdef rpMarkov < RandProcess
         % If t and/or state_n are not defined, the current simulation time
         % and state are assumed
             if nargin < 3
-                [value_list, state_n_list, prob] = obj.dlistnext(state_n, obj.t);
+                [value_list, state_n_list, prob] = obj.dlistnext(obj.t, state_n);
                 return
             end
 

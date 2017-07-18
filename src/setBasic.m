@@ -1,6 +1,36 @@
 classdef setBasic < AbstractSet
 %setBASIC generic set for mix of discrete and continuous rectalinear spaces 
 %
+% Notes:
+%   -- if a state is specified with min > max, the min value is kept
+%
+% Examples:
+%
+% >> format shortG
+% >> steps = [0.05 25 600 0 0];
+% >> ranges = [-0.15 0 200 0 20; 0.2 100 800 0 10]; % corresponds to [min min min; max max max]
+% >> states = {setBasic(ranges, '',  steps)};
+% >> state_list = states{1}.as_array;
+% >> state_list_top15 = state_list(1:15, :)
+% 
+% state_list_top15 =
+%         -0.15            0          200            0           20
+%         -0.15            0          800            0           20
+%         -0.15           25          200            0           20
+%         -0.15           25          800            0           20
+%         -0.15           50          200            0           20
+%         -0.15           50          800            0           20
+%         -0.15           75          200            0           20
+%         -0.15           75          800            0           20
+%         -0.15          100          200            0           20
+%         -0.15          100          800            0           20
+%          -0.1            0          200            0           20
+%          -0.1            0          800            0           20
+%          -0.1           25          200            0           20
+%          -0.1           25          800            0           20
+%          -0.1           50          200            0           20
+% 
+%
 % see also:
 %  setCombinWithLimits, IntegerRangeFromReal, RealFromIntegerRange 
 %
@@ -9,6 +39,7 @@ classdef setBasic < AbstractSet
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   8  2017-07-16 20:44  BryanP      BUGFIXES: various odd indexing issues fixed in IntegerRangeFromReal and RealFromIntegerRange. doctests to verify 
 %   7  2017-04-26 04:14  BryanP      Support updating discrete steps during call to as_array 
 %   6  2016-10-21 15:24  BryanP      BUGFIX: correct handling of multi-dimensional ranges 
 %   5  2016-10-06 11:24  BryanP      Fix bug by explicitly calling superclass constructor 
