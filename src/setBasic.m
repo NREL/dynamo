@@ -141,9 +141,8 @@ classdef setBasic < AbstractSet
             value_list = bsxfun(@times, value_list, obj.SampleParams.Range);
             
             % Round any discrete values
-            % JPB round? or floor
             value_list(:,obj.DiscreteMask) = bsxfun(@times, ...
-                round(value_list(:,obj.DiscreteMask)), obj.StepSize(:,obj.DiscreteMask));
+                floor(value_list(:,obj.DiscreteMask)), obj.StepSize(:,obj.DiscreteMask));
             % Adjust sample upward
             value_list = bsxfun(@plus, value_list, obj.SampleParams.Offset);
 
