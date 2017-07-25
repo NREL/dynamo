@@ -83,6 +83,12 @@ classdef rpTransMatrix < RandProcess
 %          1.51
 %          1.26
 %
+% >> rtm_obj.dlistnext(2,0.86)
+% 
+% ans =
+%          1.26
+%          1.11
+%
 %
 % see also rpLattice, RandProc, rpDiscreteSample, rpMarkov, rpBasic
 %
@@ -91,6 +97,7 @@ classdef rpTransMatrix < RandProcess
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   7  2017-07-24 23:15  BryanP      BUGFIX: Underlying RandProcess bugfix to prevent always returning future states for first (rather than current) state 
 %   6  2017-07-18 12:08  BryanP      BUGFIX: dlistnext corrected time index 
 %   5  2017-07-18 11:28  BryanP      BUGFIX: corrected inconsistant order in dlistnext to (t,s) 
 %   4  2017-07-18 10:32  BryanP      BUGFIX: incorrect field name in dlistnext 
