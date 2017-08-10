@@ -116,7 +116,7 @@ adp_opt = utilRandSetup(adp_opt);
 % Add additional required functions as needed
 problem.fOptimalDecision = utilFunctForProblem(problem, 'fOptimalDecision', @FindOptDecFromVfun);
 problem.fRandomSample = utilFunctForProblem(problem, 'fRandomSample', ...
-    @(t, n_sample) RandSetSample(problem.random_items, n_sample, t));
+    @(t, n_sample, cur_rand_state) RandSetSample(problem.random_items, n_sample, t, cur_rand_state));
 
 %% ====== Additional Setup =====
 %Pad samples per period if shorter than number of periods
@@ -333,7 +333,7 @@ for t = problem.n_periods:-1:1
         
         %>>>     sample uncertainty and store change
         % Sample Random outcomes to get to next pre-states
-        uncertainty_list{post_idx} = fn_random_sample(t, rand_per_post_state); %#ok<PFBNS>, because OK to broadcast reduced fn_* variable
+        uncertainty_list{post_idx} = fn_random_sample(t, rand_per_post_state, this_post_state(problem.params.state.dv_idx)); %#ok<PFBNS>, because OK to broadcast reduced fn_* variable
         n_uncertainty = size(uncertainty_list{post_idx},1);
         next_pre_list{post_idx} = fn_random_apply(params_only, t, this_post_state, uncertainty_list{post_idx});  %#ok<PFBNS>
         decision_list_for_pre{post_idx} = repmat(decision_list(post_idx, :), size(uncertainty_list{post_idx}, 1), 1);
