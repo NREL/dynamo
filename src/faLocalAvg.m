@@ -567,7 +567,8 @@ classdef faLocalAvg < FuncApprox
         %
         % ONLY HANDLES ONE POINT AT A TIME
             top_two = kdtree_k_nearest_neighbors(kd_tree, pt, 2);
-            second_nearest_idx = top_two(1);
+            %JPB second_nearest_idx = top_two(1);
+            second_nearest_idx = top_two(2);
         end
 
         % Override copyElement method to implement custom copy() from mixin
