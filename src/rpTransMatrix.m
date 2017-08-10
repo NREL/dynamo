@@ -77,6 +77,18 @@ classdef rpTransMatrix < RandProcess
 %     1.51
 %     1.26
 % 
+% >> rtm_obj.dlistnext(2,1.09)
+% 
+% ans =
+%          1.51
+%          1.26
+%
+% >> rtm_obj.dlistnext(2,0.86)
+% 
+% ans =
+%          1.26
+%          1.11
+%
 %
 % see also rpLattice, RandProc, rpDiscreteSample, rpMarkov, rpBasic
 %
@@ -85,6 +97,8 @@ classdef rpTransMatrix < RandProcess
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%   7  2017-07-24 23:15  BryanP      BUGFIX: Underlying RandProcess bugfix to prevent always returning future states for first (rather than current) state 
+%   6  2017-07-18 12:08  BryanP      BUGFIX: dlistnext corrected time index 
 %   5  2017-07-18 11:28  BryanP      BUGFIX: corrected inconsistant order in dlistnext to (t,s) 
 %   4  2017-07-18 10:32  BryanP      BUGFIX: incorrect field name in dlistnext 
 %   3  2017-07-16 17:27  BryanP      Specify format as shortG for consistant doctests 
@@ -196,7 +210,7 @@ classdef rpTransMatrix < RandProcess
             % Find next value list
             next_prob = obj.Transitions{t_lookup}(state_idx, :)';
             valid_state_map = next_prob > 0;
-            state_list = obj.Values{t_lookup}(valid_state_map);
+            state_list = obj.Values{t_lookup + 1}(valid_state_map);
 
             if nargout > 1
                 prob = next_prob(valid_state_map);

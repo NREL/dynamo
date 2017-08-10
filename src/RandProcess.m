@@ -12,6 +12,7 @@ classdef RandProcess < AbstractSet
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  20  2017-07-24 23:15  BryanP      BUGFIX: correct state index in checkstate (was always 1) 
 %  19  2017-07-18 11:28  BryanP      BUGFIX: corrected inconsistant order in dlistnext to (t,s) 
 %  18  2017-07-16 00:13  BryanP      Use standardized conditionatlSample() in RandProcess 
 %  17  2017-07-15 22:13  BryanP      Streamline reset() t no longer supports multiple initial states  
@@ -266,9 +267,12 @@ classdef RandProcess < AbstractSet
             % Convert time into lookup value
             t_lookup = min(floor(t), obj.N_uniqueT);
                 
-            state_idx = find(ismembertol(state, obj.Values{t_lookup}, obj.Tol, 'ByRows', true), 1, 'first');
+            [~, state_idx] = ismembertol(state, obj.Values{t_lookup}, obj.Tol, 'ByRows', true);
             if isempty(state_idx)
                 state_idx = 0;
+            else
+                %Ensure we only have one match
+                state_idx = state_idx(1);
             end
             
             if nargout == 0 && not(state_idx)

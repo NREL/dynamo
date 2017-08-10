@@ -14,11 +14,14 @@ function [results] = dpBI(problem, varargin)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- -------------------------------------
+%   9  2017-07-24 22:04    BryanP     Use dp_opt.missing_state_penalty rather than -Inf to avoid intractable math issues 
+%   8  2017-07-18 14:17    BryanP     Relocate dimension query call to fDecisionSet{!} to avoid call for each timestep 
 %   7  2017-06-29 14:17    JesseB     BUGFIX: added state_match_tol for ismembertol()
 %   6  2017-04-26 17:32    BryanP     BUGFIX: correct operations costs (now Working!) 
 %   5  2017-04-26 05:32    BryanP     Working? 
 %   4  2017-04-25 07:00    bpalmint   WIP: mostly through uncertainty management 
 %   3  2017-04-09 23:00    bpalmint   WIP: defaults, setup, pre-decision operations cost, parrallel decisions 
+%   2b 2017-early          bpalmint   Overhaul to reuse lots of pieces from original dp() and match the revised standard problem formulation 
 %   2  2016-10-27          dkrishna   Add core algorithm
 %   1  2016-03-07          dkrishna   Pseudo-code
 
@@ -36,6 +39,7 @@ dp_defaults = {
                 'fix_rand'              false
                 'fix_rand_is_done'      false
                 'state_match_tol'       .000001
+                'missing_state_penalty' -1e9      %Value to use for any missing states, set to a large magnitude negative number
                };
 
 dp_opt = DefaultOpts(varargin, dp_defaults);
@@ -52,6 +56,11 @@ end
 values = cell(1, problem.n_periods + 1);
 pre_state_list = cell(1, problem.n_periods + 1);
 policy = cell(1, problem.n_periods);  %Contains optimal decisions for each state
+
+%find decision dimensions
+initial_state = problem.state_set{1}.as_array();
+first_decision_set = problem.fDecisionSet(problem.params, 1, initial_state(1, :));
+n_decision_dims = first_decision_set.N_dim;
 
 
 %% ====== Standardized Setup =====
@@ -136,8 +145,6 @@ for t = problem.n_periods:-1:1
     end
 
     %Initialize optimal policy (decision) storage
-    first_decision_set = problem.fDecisionSet(problem.params, t, pre_state_list{t}(1, :));
-    n_decision_dims = first_decision_set.N_dim;
     policy{t} = NaN(n_pre_states, n_decision_dims);
     values{t} = NaN(n_pre_states, 1);
         
@@ -168,7 +175,7 @@ for t = problem.n_periods:-1:1
             after_dec_ops = 0;
         end
     
-        %actually start decision loop for non-vecorizable pieces
+        %actually start decision loop for non-vectorizable pieces
         expected_random_val = NaN(n_decisions, 1);
         for d = 1:n_decisions
             this_decision = decision_list(d, :);
@@ -200,11 +207,11 @@ for t = problem.n_periods:-1:1
             next_pre_value = zeros(size(uncertainty_contrib));
             [valid_state_mask, next_state_map] = ismembertol(next_pre_state_list, pre_state_list{t+1}, dp_opt.state_match_tol, 'ByRows', true);
             if not(all(valid_state_mask))
-                warning('dbBI:state_not_found', 'Some post uncertainty states not found for post-state: [%s] at t=%d. Setting values to -Inf', ...
-                    sprintf('%g ', this_post_state), t)
-                next_pre_value(not(valid_state_mask)) = -Inf;
+                warning('dbBI:state_not_found', 'Some post uncertainty states not found for post-state: [%s] at t=%d. Setting values to missing penalty of %g', ...
+                    sprintf('%g ', this_post_state), t, dp_opt.missing_state_penalty)
+                next_pre_value(not(valid_state_mask)) = dp_opt.missing_state_penalty;
             else
-            next_pre_value(valid_state_mask) = values{t+1}(next_state_map);
+                next_pre_value(valid_state_mask) = values{t+1}(next_state_map);
             end
             %>>>         compute post_random_val as sum( uncertainty_contribution, after_random_ops, (1-disc_rate) * next_pre_value) 
             post_random_value = uncertainty_contrib + after_rand_ops + (1-problem.discount_rate) * next_pre_value;
