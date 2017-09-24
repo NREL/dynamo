@@ -291,7 +291,7 @@ classdef faLocalAvg < FuncApprox
                             while not(isempty(add_pts_to_check))
                                 %a. identify additional points to consider
                                 pts_near_add_pts = [];
-                                for p = add_pts_to_check;
+                                for p = add_pts_to_check
                                     pts_near_add_pts = vertcat(pts_near_add_pts, ...
                                         kdtree_ball_query(new_pt_tree, norm_new_pts(merge_dest,:), ...
                                             obj.MergeRadius)); %#ok<AGROW>
