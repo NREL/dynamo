@@ -254,6 +254,7 @@ classdef faLocalAvg < FuncApprox
                 if size(obj.NewPts, 1) > 1
                     % (3) Build smaller kd-tree of new points
                     try
+                        norm_new_pts = double(norm_new_pts); % Added by Li Wang on 9/22/2017
                         new_pt_tree = kdtree_build(norm_new_pts);
                     catch exception
                         if strcmpi(exception.identifier, 'MATLAB:UndefinedFunction')
@@ -398,6 +399,7 @@ classdef faLocalAvg < FuncApprox
 
             % construct the kd tree
             try
+                norm_store_pts = double(norm_store_pts); %Added by Li Wang on 9/22/2017
                 obj.Func = kdtree_build(norm_store_pts);
             catch exception
                 if strcmpi(exception.identifier, 'MATLAB:UndefinedFunction')
