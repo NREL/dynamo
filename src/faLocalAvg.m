@@ -654,6 +654,7 @@ classdef faLocalAvg < FuncApprox
 
                 % construct the kd tree
                 try
+                    norm_store_pts = double(norm_store_pts)
                     obj.Func = kdtree_build(norm_store_pts);
                 catch exception
                     if strcmpi(exception.identifier, 'MATLAB:UndefinedFunction')
