@@ -239,7 +239,7 @@ if adp_opt.verbose
 end
     
 % Check required problem fields & fill other defaults
-verifyProblemStruct(problem);
+problem = verifyProblemStruct(problem);
 
 %Auto-extend state set to have at least one entry per time period, including
 %terminal period. (does nothing if already long enough)
