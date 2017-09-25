@@ -106,7 +106,7 @@ if adp_opt.verbose
 end
 
 % Check required problem fields & fill other defaults
-verifyProblemStruct(problem);
+problem = verifyProblemStruct(problem);
 
 %Auto-extend state set to have at least one entry per time period, including
 %terminal period. (does nothing if already long enough)
@@ -182,7 +182,7 @@ pre_state_list = sample(problem.state_set{t}, adp_opt.sbi_state_samples_per_time
 state_values = problem.fTerminalValue(problem.params, t, pre_state_list);
 
 %Add these points to the function approximation
-if not(isnan(problem.fMapState2Vfun))
+if not(isempty(problem.fMapState2Vfun))
     pre_state_list = problem.fMapState2Vfun(problem, pre_state_list, t);
 end
 post_vfun(t).update(pre_state_list, state_values);

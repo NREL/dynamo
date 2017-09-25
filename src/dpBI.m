@@ -46,7 +46,9 @@ dp_defaults = {
 dp_opt = DefaultOpts(varargin, dp_defaults);
 
 %--- Handle problem setup
-verifyProblemStruct(problem);
+% Check required problem fields & fill other defaults
+problem = verifyProblemStruct(problem);
+
 %Auto-extend state set to have at least one entry per time period, including
 %terminal period. (does nothing if already long enough)
 problem.state_set = utilExtendRowVector(problem.state_set, problem.n_periods + 1);
