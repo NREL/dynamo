@@ -1,5 +1,5 @@
-function params = InvInit(max_inv, p_demand, params)
-% INVINIT initialize defaults for inventory problem (modular DP)
+function params = InvSetupParams(max_inv, p_demand, params)
+% INVSETUPPARAMS initialize defaults for inventory problem (modular DP)
 %
 % this function sets up any undefined parameters to their default values
 % from Putterman 3.2.2 & 4.6.1
@@ -27,8 +27,8 @@ function params = InvInit(max_inv, p_demand, params)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
-%   1  2010-05-10 15:47  BryanP      adapted from inventory_dp version 3
 %   2  2010-05-14 23:00  BryanP      expanded comments, added max_inv & p_demand
+%   1  2010-05-10 15:47  BryanP      adapted from inventory_dp version 3
 
 %Start by adding the max inventory
 % Note: This has the added bonus of creating the params structure if it
