@@ -17,6 +17,7 @@ function results = adpSBI(problem, adp_opt, old_results)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  37  2017-09-24 20:56  BryanP      Autoextend states to cover all time periods 
 %  36  2017-09-23 23:01  BryanP      BUGFIX: update path-dependent random process code for current problem structure 
 %  35  2017-08-10 14:04  JesseB      Support for path-dependent random processes  
 %  34  2017-07-14 22:00  BryanP      Adapt for RandProc streamlining (remove options for rp* samples) 
@@ -106,6 +107,11 @@ end
 
 % Check required problem fields & fill other defaults
 verifyProblemStruct(problem);
+
+%Auto-extend state set to have at least one entry per time period, including
+%terminal period. (does nothing if already long enough)
+problem.state_set = utilExtendRowVector(problem.state_set, problem.n_periods + 1);
+
 
 %% ====== Standardized Setup =====
 % Configure random numbers, including setup consistent stream if desired

@@ -67,6 +67,7 @@ docs_to_test = {
                     'utilRandSetCurState'
                     'utilRandStatefromState'
                     'IntegerRangeFromReal'
+                    'utilExtendRowVector'
                     %Examples
                     'doctest_MultiInv'
                     'MultiInv_demo'
