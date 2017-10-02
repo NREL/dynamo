@@ -17,6 +17,9 @@ function results = adpSBI(problem, adp_opt, old_results)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  37  2017-09-24 20:56  BryanP      Autoextend states to cover all time periods 
+%  36  2017-09-23 23:01  BryanP      BUGFIX: update path-dependent random process code for current problem structure 
+%  35  2017-08-10 14:04  JesseB      Support for path-dependent random processes  
 %  34  2017-07-14 22:00  BryanP      Adapt for RandProc streamlining (remove options for rp* samples) 
 %  33  2017-07-14 06:13  BryanP      BUGFIX: randomly select current state when sampling random processes (and properly locate random process sample options) 
 %  32  2017-06-15 06:04  BryanP      Reworked to use old_results rather than just post_vfun 
@@ -103,7 +106,12 @@ if adp_opt.verbose
 end
 
 % Check required problem fields & fill other defaults
-verifyProblemStruct(problem);
+problem = verifyProblemStruct(problem);
+
+%Auto-extend state set to have at least one entry per time period, including
+%terminal period. (does nothing if already long enough)
+problem.state_set = utilExtendRowVector(problem.state_set, problem.n_periods + 1);
+
 
 %% ====== Standardized Setup =====
 % Configure random numbers, including setup consistent stream if desired
@@ -116,7 +124,7 @@ adp_opt = utilRandSetup(adp_opt);
 % Add additional required functions as needed
 problem.fOptimalDecision = utilFunctForProblem(problem, 'fOptimalDecision', @FindOptDecFromVfun);
 problem.fRandomSample = utilFunctForProblem(problem, 'fRandomSample', ...
-    @(t, n_sample) RandSetSample(problem.random_items, n_sample, t));
+    @(t, n_sample, cur_rand_state) RandSetSample(problem.random_items, n_sample, t, cur_rand_state));
 
 %% ====== Additional Setup =====
 %Pad samples per period if shorter than number of periods
@@ -174,7 +182,7 @@ pre_state_list = sample(problem.state_set{t}, adp_opt.sbi_state_samples_per_time
 state_values = problem.fTerminalValue(problem.params, t, pre_state_list);
 
 %Add these points to the function approximation
-if not(isnan(problem.fMapState2Vfun))
+if not(isempty(problem.fMapState2Vfun))
     pre_state_list = problem.fMapState2Vfun(problem, pre_state_list, t);
 end
 post_vfun(t).update(pre_state_list, state_values);
@@ -283,6 +291,7 @@ for t = problem.n_periods:-1:1
     fn_random_cost = problem.fRandomCost;
     fn_random_sample = problem.fRandomSample;
     fn_optimal_decision = problem.fOptimalDecision;
+    random_state_map = problem.random_state_map;
     %Note: Decision costs not included b/c assume internal loop for computing operations cost (with memoization?) 
     n_periods = problem.n_periods;
     adp_verbose = adp_opt.verbose;
@@ -333,7 +342,13 @@ for t = problem.n_periods:-1:1
         
         %>>>     sample uncertainty and store change
         % Sample Random outcomes to get to next pre-states
-        uncertainty_list{post_idx} = fn_random_sample(t, rand_per_post_state); %#ok<PFBNS>, because OK to broadcast reduced fn_* variable
+        if not(isempty(random_state_map))
+            cur_rand_state = utilRandStatefromState(this_post_state, random_state_map);
+        else
+            cur_rand_state = {};
+        end
+
+        uncertainty_list{post_idx} = fn_random_sample(t, rand_per_post_state, cur_rand_state); %#ok<PFBNS>, because OK to broadcast reduced fn_* variable
         n_uncertainty = size(uncertainty_list{post_idx},1);
         next_pre_list{post_idx} = fn_random_apply(params_only, t, this_post_state, uncertainty_list{post_idx});  %#ok<PFBNS>
         decision_list_for_pre{post_idx} = repmat(decision_list(post_idx, :), size(uncertainty_list{post_idx}, 1), 1);

@@ -138,6 +138,7 @@ function results = adpTD1(problem, adp_opt, old_results)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  26  2017-09-24 20:56  BryanP      Autoextend states to cover all time periods 
 %  25  2017-06-17 07:35  BryanP      WIP: Forward pass code (need to fix parfor variables) 
 %  24  2017-06-17 05:35  BryanP      WIP: Forward pass outline and data setup 
 %  23  2017-06-15 06:04  BryanP      WIP: Rework options, result init, & handling of old_results 
@@ -238,7 +239,11 @@ if adp_opt.verbose
 end
     
 % Check required problem fields & fill other defaults
-verifyProblemStruct(problem);
+problem = verifyProblemStruct(problem);
+
+%Auto-extend state set to have at least one entry per time period, including
+%terminal period. (does nothing if already long enough)
+problem.state_set = utilExtendRowVector(problem.state_set, problem.n_periods + 1);
 
 %% ====== Standardized Setup =====
 % Configure random numbers, including setup consistent stream if desired

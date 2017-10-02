@@ -65,6 +65,8 @@ classdef faLocalAvg < FuncApprox
 %% HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- ---------------------------------------
+%  16  2017-08-10 14:00  JesseB      BUGFIX: take actual second nearest neighbor
+%  15  2017-08-10 13:50  JesseB      BUGFIX: don't average variables when only one state
 %  14  2017-04-26 22:55  BryanP      BUGFIX: fix to avoid excess NaN
 %  13  2017-04-03 09:18  BryanP      Added autoexpand support
 %  12  2016-11-10 13:05  BryanP      Expose sampling config for user to edit 
@@ -252,6 +254,7 @@ classdef faLocalAvg < FuncApprox
                 if size(obj.NewPts, 1) > 1
                     % (3) Build smaller kd-tree of new points
                     try
+                        norm_new_pts = double(norm_new_pts); % Added by Li Wang on 9/22/2017
                         new_pt_tree = kdtree_build(norm_new_pts);
                     catch exception
                         if strcmpi(exception.identifier, 'MATLAB:UndefinedFunction')
@@ -289,7 +292,7 @@ classdef faLocalAvg < FuncApprox
                             while not(isempty(add_pts_to_check))
                                 %a. identify additional points to consider
                                 pts_near_add_pts = [];
-                                for p = add_pts_to_check;
+                                for p = add_pts_to_check
                                     pts_near_add_pts = vertcat(pts_near_add_pts, ...
                                         kdtree_ball_query(new_pt_tree, norm_new_pts(merge_dest,:), ...
                                             obj.MergeRadius)); %#ok<AGROW>
@@ -301,8 +304,8 @@ classdef faLocalAvg < FuncApprox
                             end
 
                             %-v- actually do the merging for this point
-                            obj.NewPts(merge_dest, :) = mean(obj.NewPts(merge_set, :));
-                            norm_new_pts(merge_dest, :) = mean(norm_new_pts(merge_set, :));
+                            obj.NewPts(merge_dest, :) = mean(obj.NewPts(merge_set, :),1);
+                            norm_new_pts(merge_dest, :) = mean(norm_new_pts(merge_set, :),1);
                             obj.NewVals(merge_dest, :) = mean(obj.NewVals(merge_set, :));
                             new_num_pts_merged(merge_dest) = sum(new_num_pts_merged(merge_set));
 
@@ -396,6 +399,7 @@ classdef faLocalAvg < FuncApprox
 
             % construct the kd tree
             try
+                norm_store_pts = double(norm_store_pts); %Added by Li Wang on 9/22/2017
                 obj.Func = kdtree_build(norm_store_pts);
             catch exception
                 if strcmpi(exception.identifier, 'MATLAB:UndefinedFunction')
@@ -566,7 +570,7 @@ classdef faLocalAvg < FuncApprox
         %
         % ONLY HANDLES ONE POINT AT A TIME
             top_two = kdtree_k_nearest_neighbors(kd_tree, pt, 2);
-            second_nearest_idx = top_two(1);
+            second_nearest_idx = top_two(2);
         end
 
         % Override copyElement method to implement custom copy() from mixin

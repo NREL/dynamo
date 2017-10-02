@@ -3,6 +3,7 @@
 #include <math.h>    // fabs operation
 #include "MyHeaps.h" // priority queues
 #include "float.h"   // max floating point number
+#include "stdint.h"
 
 #define MATLAB
 #include "mex.h"

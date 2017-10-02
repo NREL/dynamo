@@ -18,6 +18,12 @@
 
 using namespace std;
 
+// Fix for OSX suggested by Guillaume at MATLAB central
+#ifdef _LIBCPP_VERSION
+# define __is_heap is_heap
+#endif
+// end fix
+
 // macros for navigation in the hard coded binary tree
 #define PARENT(pos) ((pos-1)>>1) 	// equivalent to floor(pos/2)
 #define LEFT(pos)   ((pos<<1)+1) // equivalent to pos*2 + 1

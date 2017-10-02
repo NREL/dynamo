@@ -14,6 +14,7 @@ function [results] = dpBI(problem, varargin)
 % HISTORY
 % ver     date    time       who     changes made
 % ---  ---------- -----  ----------- -------------------------------------
+%  10  2017-09-24 20:56    BryanP     Autoextend states to cover all time periods 
 %   9  2017-07-24 22:04    BryanP     Use dp_opt.missing_state_penalty rather than -Inf to avoid intractable math issues 
 %   8  2017-07-18 14:17    BryanP     Relocate dimension query call to fDecisionSet{!} to avoid call for each timestep 
 %   7  2017-06-29 14:17    JesseB     BUGFIX: added state_match_tol for ismembertol()
@@ -45,7 +46,12 @@ dp_defaults = {
 dp_opt = DefaultOpts(varargin, dp_defaults);
 
 %--- Handle problem setup
-verifyProblemStruct(problem);
+% Check required problem fields & fill other defaults
+problem = verifyProblemStruct(problem);
+
+%Auto-extend state set to have at least one entry per time period, including
+%terminal period. (does nothing if already long enough)
+problem.state_set = utilExtendRowVector(problem.state_set, problem.n_periods + 1);
 
 if dp_opt.verbose
     fprintf('Backward Induction DP\n')
