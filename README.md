@@ -16,8 +16,8 @@ Explore the `example` directory. The `multi_inventory` and `Storage_Size_for_PV`
 
 ### Tests
 
-Add: `$DYNAMO_Root/example/multi_inventory` and `$DYNAMO_Root/example/Storage_Size_for_PV` to your MATLAB path
+1. Add: `$DYNAMO_Root/example/multi_inventory` and `$DYNAMO_Root/example/Storage_Size_for_PV` to your MATLAB path
+2. Change to the `$DYNAMO_Root/test` folder
+3. Run the following command to run all unit and doctest-based tests
 
-Run the following command to run all unit and doctest-based tests
-
-    dynamo_tests
+    dynamo_test_all
