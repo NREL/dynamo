@@ -6,7 +6,10 @@ function dynamo_test_all
 %  non-double array displays. as a result many of these doctests will not
 %  work. 
 % 
-%  Note: `example/multi_inventory` needs to be in the path
+%  Note: the following example directories need to be in the path when
+%  testing: 
+%    `example/multi_inventory` 
+%    `example/Storage_Size_for_PV` 
 
 %% === MATLAB Unit Tests ===
 fprintf('\n------ UNIT TESTS -------\n')
@@ -72,6 +75,7 @@ docs_to_test = {
                     'doctest_MultiInv'
                     'MultiInv_demo'
                     'MultiInvSetupProblem'
+                    'SimpleStoragePv_demo'
                 };
 %initialize pass & test counts
 total_doctests = 0;
