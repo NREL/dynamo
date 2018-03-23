@@ -70,6 +70,35 @@ function [simple_storage_pv_problem, results] = SimpleStoragePv_demo(varargin)
 %        dpbi_values: {[-1.0804e+06]  [6×1 double]  [9×1 double]}
 %     pre_state_list: {[0.76 0 0]  [6×3 double]  [9×3 double]}
 % 
+% >> [~ , isgt2016_as_adp] = SimpleStoragePv_demo('isgt_lookup', 'sbi');
+% Sampled Backward Induction ([0.1] ksamples/period)
+%     Creating empty post-decision value functions (LocalAvg)
+%     T=3 (terminal period): Done
+%     T=2:S........................................100
+%     T=1:S........................................100
+% Elapsed time is ***
+% 
+% >> isgt2016_as_adp
+%  isgt2016_as_adp = 
+% 
+%   struct with fields:
+% 
+%                log: [1×1 struct]
+%          post_vfun: [1×3 faLocalAvg]
+%            adp_opt: [1×1 struct]
+%     first_decision: [1000 1000]
+%          objective: ***
+%
+% >> relative_abs_error=abs(isgt2016_as_adp.objective +  1080352)/1080352
+% relative_abs_error =
+%    ***
+% 
+% relative_abs_error < 0.01
+% 
+% ans =
+%   logical
+%    1
+%
 %
 % ISGT Reference:
 %  B. Palmintier, D. Krishnamurthy, and H. Wu, ?Design Flexibility for
