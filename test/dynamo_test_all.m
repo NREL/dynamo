@@ -2,9 +2,17 @@ function dynamo_test_all
 % Run all tests for dynamo
 %  Add additional tests, doctest or otherwise, as needed
 %
-%  IMPORTANT: MATLAB changed their output formatting in R2016b for all
-%  non-double array displays. as a result many of these doctests will not
-%  work. 
+%  IMPORTANT Notes: 
+%  -- MATLAB changed their output formatting in R2016b for all
+%  non-double array displays. All doctests have been updated for this
+%  new format, but older versions of MATLAB will show many failures
+%
+%  -- Many of these tests use embedded doctests. Such tests are a bit
+%  finicky. Notably the output changes with the width of the command
+%  window. The versions included here match MATLAB running full size on
+%  most laptops (Most extensively tested with a MacBookPro 2017 with
+%  Touchbar). You may have to resize the window to pass all tests for other
+%  displays 
 % 
 %  Note: the following example directories need to be in the path when
 %  testing: 

@@ -4,16 +4,20 @@ dynamo - Dynamic programming for Adaptive Modeling and Optimization
 
 ### Install
 
-* Install MATLAB
+* Install MATLAB (R2017a or latter preferred)
+* Clone this repository
+* Open the Home>Set Path dialog and click on `Add Folder` to add the following folders to the `PATH`:
+  * `$DYNAMO_Root/src`
+  * `$DYNAMO_Root/extern` (Add all subfolders for this one)
 
-* Open Set Path and click on `Add Folder` to add the `dynamo` folder to the `PATH`
+### Getting Started
+
+Explore the `example` directory. The `multi_inventory` and `Storage_Size_for_PV` examples are best well tested.
 
 ### Tests
 
-Run the following command to run all unit tests
+Add: `$DYNAMO_Root/example/multi_inventory` and `$DYNAMO_Root/example/Storage_Size_for_PV` to your MATLAB path
+
+Run the following command to run all unit and doctest-based tests
 
     dynamo_tests
-
-### How to
-
-See the examples page for samples on how to formulate a dynamic programming problem and solve it.

@@ -79,8 +79,11 @@ toc
 
 
 %% --- Part 2: Larger system with various Poisson demands
-time_steps = 15;
-max_lambda = 20;
+fprintf('\n\n----- Running larger inventory problem with various Poisson demands -----\n')
+
+time_steps = 10;
+max_lambda = 10;
+lambda_step = 2;
 max_inv = 10;
 
 % Adapt common portions of problem from small example
@@ -91,7 +94,7 @@ poisson_inv_problem.state_set = {setList( (0:max_inv)' )};
 fprintf('\nRunning modularized DP for inventory problem with %d different lambda values\n', max_lambda)
 clear PoissonDP_Results
 tic
-for lambda = 1:max_lambda
+for lambda = 1:lambda_step:max_lambda
     %revise problem defaults & compute poisson demand distribution
     this_poisson_inv_params = InvSetupParams(max_inv, lambda);
     
@@ -106,11 +109,13 @@ fprintf('Total Poisson sensitivity dpBI ')
 toc
 
 %% --- Part 3: Add Discounting
-time_steps = 15;
-max_inv = 10;
-lambda = 5;
+fprintf('\n\n----- Running inventory problem with various discount rates -----\n')
 
-disc_rates = [0.05, 0.1, 0.2, 0.3, 0.4, 0.5];
+time_steps = 10;
+max_inv = 10;
+lambda = 6;
+
+disc_rates = [0.05, 0.1, 0.2, 0.5];
 
 % Adapt common portions of problem from latest poisson example
 inv_disc_problem = simple_inv_problem;
@@ -125,7 +130,7 @@ clear DiscDP_Results
 tic
 for dr = 1:length(disc_rates)
     inv_disc_problem.discount_rate = disc_rates(dr);
-	DiscDP_Results{dr} = dpBI(poisson_inv_problem); %#ok<SAGROW>
+	DiscDP_Results{dr} = dpBI(inv_disc_problem); %#ok<SAGROW>
 end
 fprintf('Total discount rate sensitivity dpBI ')
 toc
