@@ -292,7 +292,7 @@ classdef faLocalAvg < FuncApprox
                             while not(isempty(add_pts_to_check))
                                 %a. identify additional points to consider
                                 pts_near_add_pts = [];
-                                for p = add_pts_to_check
+                                for p = add_pts_to_check;
                                     pts_near_add_pts = vertcat(pts_near_add_pts, ...
                                         kdtree_ball_query(new_pt_tree, norm_new_pts(merge_dest,:), ...
                                             obj.MergeRadius)); %#ok<AGROW>
@@ -304,8 +304,8 @@ classdef faLocalAvg < FuncApprox
                             end
 
                             %-v- actually do the merging for this point
-                            obj.NewPts(merge_dest, :) = mean(obj.NewPts(merge_set, :),1);
-                            norm_new_pts(merge_dest, :) = mean(norm_new_pts(merge_set, :),1);
+                            obj.NewPts(merge_dest, :) = mean(obj.NewPts(merge_set, :));
+                            norm_new_pts(merge_dest, :) = mean(norm_new_pts(merge_set, :));
                             obj.NewVals(merge_dest, :) = mean(obj.NewVals(merge_set, :));
                             new_num_pts_merged(merge_dest) = sum(new_num_pts_merged(merge_set));
 
@@ -654,6 +654,7 @@ classdef faLocalAvg < FuncApprox
 
                 % construct the kd tree
                 try
+                    norm_store_pts = double(norm_store_pts)
                     obj.Func = kdtree_build(norm_store_pts);
                 catch exception
                     if strcmpi(exception.identifier, 'MATLAB:UndefinedFunction')
