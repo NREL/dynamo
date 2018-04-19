@@ -40,5 +40,6 @@ cur_rand_state = utilRandSetCurState(cell_of_RandProcess, cur_rand_state);
 % Note: not preallocating b/c not sure of type
 u_list = [];
 for idx = 1:length(cell_of_RandProcess)
-    u_list = [u_list, cell_of_RandProcess{idx}.sample(n_samples, t, cur_rand_state{idx})]; %#ok<AGROW>
+    %u_list = [u_list, cell_of_RandProcess{idx}.sample(n_samples, t, cur_rand_state{idx})]; %#ok<AGROW>
+	u_list = [u_list, cell_of_RandProcess{idx}.sample(n_samples, t)];
 end
